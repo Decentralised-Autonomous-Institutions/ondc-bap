@@ -1,0 +1,479 @@
+%% ============================================================================
+%% 1. Crate Dependency Architecture
+%% ============================================================================
+
+graph TB
+    subgraph "ONDC Rust SDK - Crate Dependencies"
+        direction TB
+        
+        %% Main SDK Crate
+        SDK[ondc-crypto<br/>📦 Main SDK<br/>High-level API]
+        
+        %% Core Crates
+        TRAITS[ondc-crypto-traits<br/>🎯 Core Traits & Errors<br/>Foundation types]
+        ALGO[ondc-crypto-algorithms<br/>🔐 Ed25519 & Blake2<br/>Crypto implementations]
+        FORMATS[ondc-crypto-formats<br/>📄 Encoding/Decoding<br/>Format conversions]
+        HTTP[ondc-crypto-http<br/>🌐 HTTP Signatures<br/>ONDC protocol layer]
+        UTILS[ondc-crypto-utils<br/>🛠️ Utilities<br/>Helper functions]
+        
+        %% External Dependencies
+        subgraph "External Dependencies"
+            ED25519[ed25519-dalek<br/>🔑 EdDSA signing]
+            BLAKE2[blake2_simd<br/>🏃 Fast hashing]
+            BASE64[base64<br/>📝 Encoding]
+            ZEROIZE[zeroize<br/>🔒 Memory safety]
+            CHRONO[chrono<br/>⏰ Time handling]
+            THISERROR[thiserror<br/>❌ Error types]
+        end
+        
+        %% Dependencies
+        SDK --> TRAITS
+        SDK --> ALGO
+        SDK --> FORMATS
+        SDK --> HTTP
+        SDK --> UTILS
+        
+        ALGO --> TRAITS
+        ALGO --> ED25519
+        ALGO --> BLAKE2
+        ALGO --> ZEROIZE
+        
+        FORMATS --> TRAITS
+        FORMATS --> BASE64
+        FORMATS --> ZEROIZE
+        
+        HTTP --> TRAITS
+        HTTP --> ALGO
+        HTTP --> FORMATS
+        HTTP --> CHRONO
+        
+        UTILS --> TRAITS
+        UTILS --> CHRONO
+        
+        TRAITS --> THISERROR
+        
+        %% Styling
+        classDef mainCrate fill:#e1f5fe,stroke:#01579b,stroke-width:3px
+        classDef coreCrate fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+        classDef externalCrate fill:#fff3e0,stroke:#e65100,stroke-width:1px
+        
+        class SDK mainCrate
+        class TRAITS,ALGO,FORMATS,HTTP,UTILS coreCrate
+        class ED25519,BLAKE2,BASE64,ZEROIZE,CHRONO,THISERROR externalCrate
+    end
+
+---
+
+%% ============================================================================
+%% 2. Module Interaction Flow
+%% ============================================================================
+
+graph LR
+    subgraph "ONDC Request Signing Flow"
+        direction LR
+        
+        %% Input
+        USER[👤 Developer]
+        BODY[📄 Request Body]
+        PRIV_KEY[🔑 Private Key]
+        CONFIG[⚙️ Config]
+        
+        %% Core Modules
+        subgraph "ondc-crypto-traits"
+            SIGNER_TRAIT[Signer Trait]
+            HASHER_TRAIT[Hasher Trait]
+            ERROR_TYPES[Error Types]
+        end
+        
+        subgraph "ondc-crypto-algorithms"
+            ED25519_SIGNER[Ed25519Signer]
+            BLAKE2_HASHER[Blake2Hasher]
+        end
+        
+        subgraph "ondc-crypto-formats"
+            BASE64_ENCODER[Base64 Encoder]
+            KEY_CONVERTER[Key Converter]
+        end
+        
+        subgraph "ondc-crypto-http"
+            SIGNING_STRING[SigningString Builder]
+            AUTH_HEADER[AuthHeader Builder]
+            TIMESTAMP[Timestamp Manager]
+        end
+        
+        subgraph "ondc-crypto (Main SDK)"
+            ONDC_CRYPTO[ONDCCrypto API]
+        end
+        
+        %% Flow
+        USER --> ONDC_CRYPTO
+        BODY --> ONDC_CRYPTO
+        PRIV_KEY --> ONDC_CRYPTO
+        CONFIG --> ONDC_CRYPTO
+        
+        ONDC_CRYPTO --> SIGNING_STRING
+        ONDC_CRYPTO --> AUTH_HEADER
+        ONDC_CRYPTO --> ED25519_SIGNER
+        
+        SIGNING_STRING --> BLAKE2_HASHER
+        SIGNING_STRING --> TIMESTAMP
+        
+        AUTH_HEADER --> BASE64_ENCODER
+        AUTH_HEADER --> KEY_CONVERTER
+        
+        ED25519_SIGNER -.-> SIGNER_TRAIT
+        BLAKE2_HASHER -.-> HASHER_TRAIT
+        
+        %% Output
+        ONDC_CRYPTO --> RESULT[✅ Authorization Header]
+        
+        %% Styling
+        classDef inputNode fill:#c8e6c9,stroke:#2e7d32
+        classDef processNode fill:#e3f2fd,stroke:#1565c0
+        classDef outputNode fill:#fff3e0,stroke:#f57c00
+        classDef traitNode fill:#fce4ec,stroke:#c2185b
+        
+        class USER,BODY,PRIV_KEY,CONFIG inputNode
+        class ED25519_SIGNER,BLAKE2_HASHER,BASE64_ENCODER,KEY_CONVERTER,SIGNING_STRING,AUTH_HEADER,TIMESTAMP,ONDC_CRYPTO processNode
+        class RESULT outputNode
+        class SIGNER_TRAIT,HASHER_TRAIT,ERROR_TYPES traitNode
+    end
+
+---
+
+%% ============================================================================
+%% 3. ONDC Request Verification Flow
+%% ============================================================================
+
+graph LR
+    subgraph "ONDC Request Verification Flow"
+        direction LR
+        
+        %% Input
+        VERIFIER_USER[👤 Verifier]
+        AUTH_HDR[🔐 Authorization Header]
+        REQ_BODY[📄 Request Body]
+        PUB_KEY[🔓 Public Key]
+        
+        %% Processing Modules
+        subgraph "Parsing & Validation"
+            HEADER_PARSER[Header Parser]
+            TIMESTAMP_VALIDATOR[Timestamp Validator]
+            FORMAT_VALIDATOR[Format Validator]
+        end
+        
+        subgraph "Signature Reconstruction"
+            SIGNING_STRING_REBUILD[SigningString Rebuilder]
+            DIGEST_REBUILD[Digest Rebuilder]
+        end
+        
+        subgraph "Cryptographic Verification"
+            ED25519_VERIFIER[Ed25519Verifier]
+            CONSTANT_TIME_CMP[Constant-Time Compare]
+        end
+        
+        %% Flow
+        VERIFIER_USER --> HEADER_PARSER
+        AUTH_HDR --> HEADER_PARSER
+        REQ_BODY --> SIGNING_STRING_REBUILD
+        PUB_KEY --> ED25519_VERIFIER
+        
+        HEADER_PARSER --> TIMESTAMP_VALIDATOR
+        HEADER_PARSER --> FORMAT_VALIDATOR
+        HEADER_PARSER --> SIGNING_STRING_REBUILD
+        
+        SIGNING_STRING_REBUILD --> DIGEST_REBUILD
+        DIGEST_REBUILD --> ED25519_VERIFIER
+        
+        ED25519_VERIFIER --> CONSTANT_TIME_CMP
+        
+        %% Output
+        CONSTANT_TIME_CMP --> VERIFICATION_RESULT{✅ Valid Signature?}
+        VERIFICATION_RESULT -->|Yes| SUCCESS[✅ Request Verified]
+        VERIFICATION_RESULT -->|No| FAILURE[❌ Verification Failed]
+        
+        %% Error Paths
+        TIMESTAMP_VALIDATOR -->|Invalid| TIMESTAMP_ERROR[❌ Timestamp Error]
+        FORMAT_VALIDATOR -->|Invalid| FORMAT_ERROR[❌ Format Error]
+        
+        %% Styling
+        classDef inputNode fill:#c8e6c9,stroke:#2e7d32
+        classDef processNode fill:#e3f2fd,stroke:#1565c0
+        classDef decisionNode fill:#fff9c4,stroke:#f9a825
+        classDef successNode fill:#c8e6c9,stroke:#2e7d32
+        classDef errorNode fill:#ffcdd2,stroke:#d32f2f
+        
+        class VERIFIER_USER,AUTH_HDR,REQ_BODY,PUB_KEY inputNode
+        class HEADER_PARSER,TIMESTAMP_VALIDATOR,FORMAT_VALIDATOR,SIGNING_STRING_REBUILD,DIGEST_REBUILD,ED25519_VERIFIER,CONSTANT_TIME_CMP processNode
+        class VERIFICATION_RESULT decisionNode
+        class SUCCESS successNode
+        class FAILURE,TIMESTAMP_ERROR,FORMAT_ERROR errorNode
+    end
+
+---
+
+%% ============================================================================
+%% 4. API Layer Architecture
+%% ============================================================================
+
+graph TB
+    subgraph "ONDC Crypto SDK - API Layers"
+        direction TB
+        
+        %% User Interface Layer
+        subgraph "🌐 User Interface Layer"
+            SYNC_API[Synchronous API<br/>ONDCCrypto::create_authorization_header]
+            ASYNC_API[Asynchronous API<br/>ONDCCrypto::create_authorization_header_async]
+            BUILDER_API[Builder Pattern API<br/>AuthorizationHeaderBuilder]
+        end
+        
+        %% Business Logic Layer
+        subgraph "🎯 Business Logic Layer"
+            ONDC_PROTOCOL[ONDC Protocol Handler<br/>HTTP signature validation]
+            KEY_MANAGEMENT[Key Management<br/>Key validation & conversion]
+            TIMESTAMP_LOGIC[Timestamp Logic<br/>Expiry & tolerance handling]
+        end
+        
+        %% Core Services Layer
+        subgraph "🔧 Core Services Layer"
+            SIGNING_SERVICE[Signing Service<br/>Ed25519 operations]
+            HASHING_SERVICE[Hashing Service<br/>Blake2 operations]
+            ENCODING_SERVICE[Encoding Service<br/>Base64 operations]
+        end
+        
+        %% Infrastructure Layer
+        subgraph "⚡ Infrastructure Layer"
+            CRYPTO_PRIMITIVES[Crypto Primitives<br/>ed25519-dalek, blake2_simd]
+            MEMORY_SAFETY[Memory Safety<br/>zeroize, subtle]
+            ERROR_HANDLING[Error Handling<br/>thiserror, structured errors]
+        end
+        
+        %% Connections
+        SYNC_API --> ONDC_PROTOCOL
+        ASYNC_API --> ONDC_PROTOCOL
+        BUILDER_API --> ONDC_PROTOCOL
+        
+        ONDC_PROTOCOL --> KEY_MANAGEMENT
+        ONDC_PROTOCOL --> TIMESTAMP_LOGIC
+        ONDC_PROTOCOL --> SIGNING_SERVICE
+        
+        KEY_MANAGEMENT --> ENCODING_SERVICE
+        TIMESTAMP_LOGIC --> HASHING_SERVICE
+        
+        SIGNING_SERVICE --> CRYPTO_PRIMITIVES
+        HASHING_SERVICE --> CRYPTO_PRIMITIVES
+        ENCODING_SERVICE --> CRYPTO_PRIMITIVES
+        
+        CRYPTO_PRIMITIVES --> MEMORY_SAFETY
+        CRYPTO_PRIMITIVES --> ERROR_HANDLING
+        
+        %% Styling
+        classDef uiLayer fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+        classDef businessLayer fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+        classDef serviceLayer fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+        classDef infraLayer fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+        
+        class SYNC_API,ASYNC_API,BUILDER_API uiLayer
+        class ONDC_PROTOCOL,KEY_MANAGEMENT,TIMESTAMP_LOGIC businessLayer
+        class SIGNING_SERVICE,HASHING_SERVICE,ENCODING_SERVICE serviceLayer
+        class CRYPTO_PRIMITIVES,MEMORY_SAFETY,ERROR_HANDLING infraLayer
+    end
+
+---
+
+%% ============================================================================
+%% 5. Error Handling Flow
+%% ============================================================================
+
+graph TD
+    subgraph "Error Handling Architecture"
+        direction TD
+        
+        %% Error Sources
+        subgraph "🚨 Error Sources"
+            USER_INPUT[Invalid User Input]
+            CRYPTO_ERROR[Cryptographic Failure]
+            FORMAT_ERROR[Format/Encoding Error]
+            TIMESTAMP_ERROR[Timestamp Validation]
+            NETWORK_ERROR[Network/Protocol Error]
+        end
+        
+        %% Error Processing
+        subgraph "⚙️ Error Processing"
+            ERROR_CLASSIFICATION[Error Classification]
+            CONTEXT_ENRICHMENT[Context Enrichment]
+            ERROR_CONVERSION[Error Type Conversion]
+        end
+        
+        %% Error Types
+        subgraph "📋 Structured Error Types"
+            ONDC_CRYPTO_ERROR[ONDCCryptoError<br/>Main error enum]
+            VERIFICATION_FAILED[VerificationFailed]
+            INVALID_KEY_LENGTH[InvalidKeyLength]
+            ENCODING_ERROR[EncodingError]
+            INVALID_TIMESTAMP[InvalidTimestamp]
+            PROTOCOL_ERROR[ProtocolError]
+            CONFIG_ERROR[ConfigError]
+        end
+        
+        %% Error Handling
+        subgraph "🛠️ Error Handling"
+            ERROR_RECOVERY[Error Recovery Logic]
+            LOGGING[Error Logging]
+            USER_FEEDBACK[User-Friendly Messages]
+        end
+        
+        %% Flow
+        USER_INPUT --> ERROR_CLASSIFICATION
+        CRYPTO_ERROR --> ERROR_CLASSIFICATION
+        FORMAT_ERROR --> ERROR_CLASSIFICATION
+        TIMESTAMP_ERROR --> ERROR_CLASSIFICATION
+        NETWORK_ERROR --> ERROR_CLASSIFICATION
+        
+        ERROR_CLASSIFICATION --> CONTEXT_ENRICHMENT
+        CONTEXT_ENRICHMENT --> ERROR_CONVERSION
+        
+        ERROR_CONVERSION --> ONDC_CRYPTO_ERROR
+        ONDC_CRYPTO_ERROR --> VERIFICATION_FAILED
+        ONDC_CRYPTO_ERROR --> INVALID_KEY_LENGTH
+        ONDC_CRYPTO_ERROR --> ENCODING_ERROR
+        ONDC_CRYPTO_ERROR --> INVALID_TIMESTAMP
+        ONDC_CRYPTO_ERROR --> PROTOCOL_ERROR
+        ONDC_CRYPTO_ERROR --> CONFIG_ERROR
+        
+        VERIFICATION_FAILED --> ERROR_RECOVERY
+        INVALID_KEY_LENGTH --> ERROR_RECOVERY
+        ENCODING_ERROR --> ERROR_RECOVERY
+        INVALID_TIMESTAMP --> ERROR_RECOVERY
+        PROTOCOL_ERROR --> ERROR_RECOVERY
+        CONFIG_ERROR --> ERROR_RECOVERY
+        
+        ERROR_RECOVERY --> LOGGING
+        ERROR_RECOVERY --> USER_FEEDBACK
+        
+        %% Styling
+        classDef errorSource fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px
+        classDef errorProcess fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+        classDef errorType fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+        classDef errorHandle fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+        
+        class USER_INPUT,CRYPTO_ERROR,FORMAT_ERROR,TIMESTAMP_ERROR,NETWORK_ERROR errorSource
+        class ERROR_CLASSIFICATION,CONTEXT_ENRICHMENT,ERROR_CONVERSION errorProcess
+        class ONDC_CRYPTO_ERROR,VERIFICATION_FAILED,INVALID_KEY_LENGTH,ENCODING_ERROR,INVALID_TIMESTAMP,PROTOCOL_ERROR,CONFIG_ERROR errorType
+        class ERROR_RECOVERY,LOGGING,USER_FEEDBACK errorHandle
+    end
+
+---
+
+%% ============================================================================
+%% 6. Data Flow for Complete ONDC Transaction
+%% ============================================================================
+
+sequenceDiagram
+    participant Dev as 👤 Developer
+    participant SDK as 📦 ONDC Crypto SDK
+    participant Traits as 🎯 Traits
+    participant Algo as 🔐 Algorithms
+    participant HTTP as 🌐 HTTP Module
+    participant Network as 🌍 ONDC Network
+    
+    Note over Dev,Network: ONDC Request Signing & Sending
+    
+    Dev->>SDK: create_authorization_header(body, subscriber_id, key_id)
+    SDK->>HTTP: create_signing_string(body, timestamps)
+    HTTP->>Algo: hash(body) using Blake2
+    Algo->>HTTP: return digest
+    HTTP->>SDK: return signing_string
+    
+    SDK->>Algo: sign(signing_string, private_key)
+    Algo->>Traits: use Signer trait
+    Traits->>Algo: return signature
+    Algo->>SDK: return signature
+    
+    SDK->>HTTP: format_authorization_header(signature, metadata)
+    HTTP->>SDK: return formatted header
+    SDK->>Dev: return authorization header
+    
+    Dev->>Network: send request with authorization header
+    
+    Note over Dev,Network: ONDC Response Verification
+    
+    Network->>Dev: response with authorization header
+    Dev->>SDK: verify_authorization_header(header, body, public_key)
+    
+    SDK->>HTTP: parse_authorization_header(header)
+    HTTP->>SDK: return parsed components
+    
+    SDK->>HTTP: validate_timestamps(created, expires)
+    HTTP->>SDK: validation result
+    
+    SDK->>HTTP: reconstruct_signing_string(body, timestamps)
+    HTTP->>Algo: hash(body) using Blake2
+    Algo->>HTTP: return digest
+    HTTP->>SDK: return signing_string
+    
+    SDK->>Algo: verify(public_key, signing_string, signature)
+    Algo->>Traits: use Verifier trait
+    Traits->>Algo: return verification result
+    Algo->>SDK: return verification result
+    
+    SDK->>Dev: return verification status
+
+---
+
+%% ============================================================================
+%% 7. Security Architecture
+%% ============================================================================
+
+graph TB
+    subgraph "🔒 Security Architecture"
+        direction TB
+        
+        %% Security Layers
+        subgraph "🛡️ Defense in Depth"
+            TYPE_SAFETY[Type Safety Layer<br/>Compile-time guarantees]
+            MEMORY_SAFETY[Memory Safety Layer<br/>Rust ownership + zeroize]
+            CRYPTO_SAFETY[Cryptographic Safety<br/>Constant-time operations]
+            PROTOCOL_SAFETY[Protocol Safety<br/>ONDC compliance validation]
+        end
+        
+        %% Security Components
+        subgraph "🔐 Security Components"
+            CONSTANT_TIME[Constant-Time Operations<br/>subtle crate]
+            MEMORY_ZERO[Memory Zeroization<br/>zeroize crate]
+            SECURE_RANDOM[Secure RNG<br/>OsRng]
+            TIMING_PROTECTION[Timing Attack Protection<br/>Verification guards]
+        end
+        
+        %% Threat Mitigation
+        subgraph "⚠️ Threat Mitigation"
+            TIMING_ATTACKS[Timing Attacks<br/>Constant-time comparisons]
+            MEMORY_LEAKS[Memory Disclosure<br/>Automatic zeroization]
+            MALLEABILITY[Signature Malleability<br/>Strict verification]
+            REPLAY_ATTACKS[Replay Attacks<br/>Timestamp validation]
+        end
+        
+        %% Security Flow
+        TYPE_SAFETY --> MEMORY_SAFETY
+        MEMORY_SAFETY --> CRYPTO_SAFETY
+        CRYPTO_SAFETY --> PROTOCOL_SAFETY
+        
+        CONSTANT_TIME --> TIMING_ATTACKS
+        MEMORY_ZERO --> MEMORY_LEAKS
+        SECURE_RANDOM --> MALLEABILITY
+        TIMING_PROTECTION --> REPLAY_ATTACKS
+        
+        TYPE_SAFETY -.-> CONSTANT_TIME
+        MEMORY_SAFETY -.-> MEMORY_ZERO
+        CRYPTO_SAFETY -.-> SECURE_RANDOM
+        PROTOCOL_SAFETY -.-> TIMING_PROTECTION
+        
+        %% Styling
+        classDef securityLayer fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+        classDef securityComp fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+        classDef threatMit fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+        
+        class TYPE_SAFETY,MEMORY_SAFETY,CRYPTO_SAFETY,PROTOCOL_SAFETY securityLayer
+        class CONSTANT_TIME,MEMORY_ZERO,SECURE_RANDOM,TIMING_PROTECTION securityComp
+        class TIMING_ATTACKS,MEMORY_LEAKS,MALLEABILITY,REPLAY_ATTACKS threatMit
+    end
