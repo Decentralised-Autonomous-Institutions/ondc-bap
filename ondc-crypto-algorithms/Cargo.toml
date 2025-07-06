@@ -1,0 +1,24 @@
+[package]
+name = "ondc-crypto-algorithms"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Cryptographic algorithm implementations for ONDC"
+keywords.workspace = true
+categories.workspace = true
+readme.workspace = true
+
+[dependencies]
+# Internal crates
+ondc-crypto-traits = { path = "../ondc-crypto-traits" }
+
+# Cryptographic dependencies
+ed25519-dalek = { workspace = true }
+blake2_simd = { workspace = true }
+x25519-dalek = { workspace = true }
+
+# Memory safety
+zeroize = { workspace = true }
+subtle = { workspace = true } 

@@ -1,0 +1,36 @@
+[package]
+name = "ondc-crypto"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme.workspace = true
+
+[dependencies]
+# Internal crates
+ondc-crypto-traits = { path = "../ondc-crypto-traits" }
+ondc-crypto-algorithms = { path = "../ondc-crypto-algorithms" }
+ondc-crypto-formats = { path = "../ondc-crypto-formats" }
+ondc-crypto-http = { path = "../ondc-crypto-http" }
+ondc-crypto-utils = { path = "../ondc-crypto-utils" }
+
+# External dependencies
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Optional async support
+tokio = { workspace = true, optional = true }
+
+[features]
+default = []
+async = ["tokio"]
+full = ["async"]
+
+[[bin]]
+name = "ondc-crypto"
+path = "src/bin/main.rs" 

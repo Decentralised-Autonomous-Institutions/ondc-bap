@@ -42,6 +42,53 @@ ondc-crypto (main SDK)
     └── ondc-crypto-traits
 ```
 
+### Project Structure:
+```
+ondc-crypto/
+├── Cargo.toml (workspace root)
+├── ondc-crypto/ (main SDK)
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs (main API)
+│       ├── api.rs (ONDCCrypto struct)
+│       ├── config.rs (ONDCConfig)
+│       └── bin/
+│           └── main.rs (CLI tool)
+├── ondc-crypto-traits/ (foundational traits)
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── error.rs (ONDCCryptoError)
+│       └── traits.rs (Signer, Verifier, Hasher)
+├── ondc-crypto-algorithms/ (crypto implementations)
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── ed25519.rs (Ed25519Signer, Ed25519Verifier)
+│       ├── blake2.rs (Blake2Hasher)
+│       └── x25519.rs (X25519KeyExchange)
+├── ondc-crypto-formats/ (encoding utilities)
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── base64.rs (encoding/decoding)
+│       └── key_formats.rs (key conversions)
+├── ondc-crypto-http/ (HTTP signatures)
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs
+│       ├── signing_string.rs (ONDCSigningString)
+│       ├── authorization_header.rs (header generation/parsing)
+│       └── vlookup.rs (vLookup signatures)
+└── ondc-crypto-utils/ (utilities)
+    ├── Cargo.toml
+    └── src/
+        ├── lib.rs
+        ├── time.rs (timestamp utilities)
+        └── validation.rs (validation helpers)
+```
+
+
 ### 1. ondc-crypto-traits
 
 **Purpose**: Foundation crate defining core traits, error types, and interfaces.

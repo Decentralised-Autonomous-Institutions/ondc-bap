@@ -1,0 +1,14 @@
+[package]
+name = "ondc-crypto-traits"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Core traits and error types for ONDC cryptographic operations"
+keywords.workspace = true
+categories.workspace = true
+readme.workspace = true
+
+[dependencies]
+thiserror = { workspace = true } 
