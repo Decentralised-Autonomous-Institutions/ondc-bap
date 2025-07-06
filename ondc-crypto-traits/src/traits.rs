@@ -50,8 +50,8 @@ pub trait Hasher {
 }
 
 // Implement traits for ONDCCryptoError
-impl From<ONDCCryptoError> for Box<dyn std::error::Error + Send + Sync> {
-    fn from(err: ONDCCryptoError) -> Self {
-        Box::new(err)
-    }
-} 
+// impl From<ONDCCryptoError> for Box<dyn std::error::Error + Send + Sync> {
+//     fn from(err: ONDCCryptoError) -> Self {
+//         Box::new(err)
+//     }
+// } 

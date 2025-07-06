@@ -1,0 +1,106 @@
+# Clippy configuration for ONDC Crypto SDK
+# Security-focused linting configuration
+
+# Allow some lints that are too strict for cryptographic code
+allow = [
+    "as_conversions",           # Sometimes needed for crypto operations
+    "cast_possible_truncation", # Common in crypto when converting between types
+    "cast_possible_wrap",       # Common in crypto when converting between types
+    "cast_precision_loss",      # Common in crypto when converting between types
+    "cast_sign_loss",           # Common in crypto when converting between types
+    "doc_markdown",             # Allow markdown in documentation
+    "exhaustive_enums",         # Too strict for large enums
+    "exhaustive_structs",       # Too strict for large structs
+    "float_cmp",                # Sometimes needed for test comparisons
+    "if_not_else",              # Sometimes more readable
+    "indexing_slicing",         # Sometimes needed for performance
+    "integer_division",         # Sometimes intended behavior
+    "items_after_statements",   # Sometimes needed for clarity
+    "let_underscore_drop",      # Sometimes needed for side effects
+    "let_underscore_lock",      # Sometimes needed for side effects
+    "let_underscore_must_use",  # Sometimes needed for side effects
+    "manual_assert",            # Sometimes more explicit
+    "manual_instant_elapsed",   # Sometimes more explicit
+    "manual_string_new",        # Sometimes more explicit
+    "map_err_ignore",           # Sometimes needed for error conversion
+    "match_bool",               # Sometimes more readable
+    "match_on_vec_items",       # Sometimes needed for performance
+    "match_same_arms",          # Sometimes needed for clarity
+    "match_wild_err_arm",       # Sometimes needed for error handling
+    "missing_inline_in_public_items", # Sometimes not needed
+    "module_inception",         # Sometimes needed for organization
+    "module_name_repetitions",  # Sometimes needed for clarity
+    "multiple_crate_versions",  # Sometimes needed for compatibility
+    "must_use_unit",            # Sometimes not needed
+    "needless_borrow",          # Sometimes needed for clarity
+    "needless_collect",         # Sometimes needed for performance
+    "needless_question_mark",   # Sometimes more readable
+    "needless_return",          # Sometimes more readable
+    "non_ascii_idents",         # Sometimes needed for internationalization
+    "option_if_let_else",       # Sometimes more readable
+    "or_fun_call",              # Sometimes more readable
+    "path_buf_push_overwrite",  # Sometimes intended behavior
+    "pattern_type_mismatch",    # Sometimes needed for type safety
+    "ptr_as_ptr",               # Sometimes needed for FFI
+    "redundant_clone",          # Sometimes needed for ownership
+    "redundant_else",           # Sometimes more readable
+    "redundant_feature_names",  # Sometimes needed for clarity
+    "redundant_static_lifetimes", # Sometimes needed for clarity
+    "ref_binding_to_reference", # Sometimes needed for borrowing
+    "ref_option_ref",           # Sometimes needed for borrowing
+    "same_functions_in_if_blocks", # Sometimes needed for clarity
+    "self_named_module_files",  # Sometimes needed for organization
+    "similar_names",            # Sometimes needed for clarity
+    "single_char_lifetime_names", # Sometimes needed for brevity
+    "string_lit_as_bytes",      # Sometimes needed for performance
+    "string_to_string",         # Sometimes needed for ownership
+    "todo",                     # Allow TODO comments for development
+    "trivial_regex",            # Sometimes needed for clarity
+    "type_repetition_in_bounds", # Sometimes needed for clarity
+    "unnecessary_join",         # Sometimes needed for clarity
+    "unnecessary_lazy_evaluations", # Sometimes needed for performance
+    "unnecessary_struct_initialization", # Sometimes needed for clarity
+    "unnecessary_wraps",        # Sometimes needed for type safety
+    "unused_async",             # Sometimes needed for trait implementations
+    "unused_self",              # Sometimes needed for clarity
+    "use_debug",                # Sometimes needed for debugging
+    "wildcard_dependencies",    # Sometimes needed for compatibility
+]
+
+# Disable some lints that are not applicable to crypto code
+disallow = [
+    "unsafe_code",              # Forbid unsafe code by default
+]
+
+# Set specific lint levels
+warn = [
+    "clippy::all",              # Enable all clippy lints
+    "clippy::pedantic",         # Enable pedantic lints
+    "clippy::nursery",          # Enable nursery lints
+    "clippy::cargo",            # Enable cargo lints
+    "clippy::complexity",       # Enable complexity lints
+    "clippy::correctness",      # Enable correctness lints
+    "clippy::perf",             # Enable performance lints
+    "clippy::style",            # Enable style lints
+    "clippy::suspicious",       # Enable suspicious lints
+    # Security-focused lints
+    "clippy::unsafe_derive_deserialize",
+    "clippy::unsafe_removed_from_name",
+    "clippy::unsafe_under_const",
+    # Performance lints
+    "clippy::large_enum_variant",
+    "clippy::large_stack_arrays",
+    "clippy::large_types_passed_by_value",
+    "clippy::too_many_arguments",
+    "clippy::too_many_lines",
+    # Code quality lints
+    "clippy::cognitive_complexity",
+    "clippy::cyclomatic_complexity",
+    "clippy::missing_const_for_fn",
+    "clippy::missing_errors_doc",
+    "clippy::missing_panics_doc",
+    "clippy::must_use_candidate",
+    "clippy::needless_pass_by_value",
+    "clippy::non_ascii_literal",
+    "clippy::unseparated_literal_suffix",
+] 

@@ -19,7 +19,7 @@ graph TB
         %% External Dependencies
         subgraph "External Dependencies"
             ED25519[ed25519-dalek<br/>🔑 EdDSA signing]
-            BLAKE2[blake2_simd<br/>🏃 Fast hashing]
+            BLAKE2[blake2b_simd<br/>🏃 Fast hashing]
             BASE64[base64<br/>📝 Encoding]
             ZEROIZE[zeroize<br/>🔒 Memory safety]
             CHRONO[chrono<br/>⏰ Time handling]
@@ -243,7 +243,7 @@ graph TB
         
         %% Infrastructure Layer
         subgraph "⚡ Infrastructure Layer"
-            CRYPTO_PRIMITIVES[Crypto Primitives<br/>ed25519-dalek, blake2_simd]
+            CRYPTO_PRIMITIVES[Crypto Primitives<br/>ed25519-dalek, blake2b_simd]
             MEMORY_SAFETY[Memory Safety<br/>zeroize, subtle]
             ERROR_HANDLING[Error Handling<br/>thiserror, structured errors]
         end

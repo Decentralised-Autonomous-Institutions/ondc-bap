@@ -277,7 +277,7 @@ impl Verifier for Ed25519Verifier {
 
 **BLAKE2 Hasher Implementation**:
 ```rust
-use blake2_simd::{blake2b, Params};
+use blake2b_simd::{blake2b, Params};
 
 pub struct Blake2Hasher;
 

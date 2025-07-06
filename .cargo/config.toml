@@ -1,0 +1,129 @@
+[build]
+# Enable incremental compilation for faster builds
+incremental = true
+
+[target.x86_64-unknown-linux-gnu]
+# Enable link-time optimization for release builds
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-apple-darwin]
+# Enable link-time optimization for release builds
+# rustflags = ["-C", "link-arg=-fuse-ld=/usr/bin/ld64.lld"]
+
+[target.x86_64-pc-windows-msvc]
+# Enable link-time optimization for release builds
+# rustflags = ["-C", "link-arg=/OPT:REF", "-C", "link-arg=/OPT:ICF"]
+
+[lints.rust]
+# Enable all lints by default
+unsafe_code = "forbid"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+unused_extern_crates = "warn"
+unused_import_braces = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
+variant_size_differences = "warn"
+
+[lints.clippy]
+# Clippy lints for security and code quality
+all = "warn"
+pedantic = "warn"
+nursery = "warn"
+cargo = "warn"
+complexity = "warn"
+correctness = "warn"
+perf = "warn"
+style = "warn"
+suspicious = "warn"
+
+# Security-focused lints
+unsafe_derive_deserialize = "warn"
+unsafe_removed_from_name = "warn"
+unsafe_under_const = "warn"
+
+# Performance lints
+large_enum_variant = "warn"
+large_stack_arrays = "warn"
+large_types_passed_by_value = "warn"
+too_many_arguments = "warn"
+too_many_lines = "warn"
+
+# Code quality lints
+cognitive_complexity = "warn"
+cyclomatic_complexity = "warn"
+missing_const_for_fn = "warn"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+must_use_candidate = "warn"
+needless_pass_by_value = "warn"
+non_ascii_literal = "warn"
+unseparated_literal_suffix = "warn"
+
+# Allow some lints that are too strict for this project
+allow_attributes_without_reason = "allow"
+as_conversions = "allow"
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+doc_markdown = "allow"
+exhaustive_enums = "allow"
+exhaustive_structs = "allow"
+float_cmp = "allow"
+if_not_else = "allow"
+indexing_slicing = "allow"
+integer_division = "allow"
+items_after_statements = "allow"
+let_underscore_drop = "allow"
+let_underscore_lock = "allow"
+let_underscore_must_use = "allow"
+manual_assert = "allow"
+manual_instant_elapsed = "allow"
+manual_string_new = "allow"
+map_err_ignore = "allow"
+match_bool = "allow"
+match_on_vec_items = "allow"
+match_same_arms = "allow"
+match_wild_err_arm = "allow"
+missing_inline_in_public_items = "allow"
+module_inception = "allow"
+module_name_repetitions = "allow"
+multiple_crate_versions = "allow"
+must_use_unit = "allow"
+needless_borrow = "allow"
+needless_collect = "allow"
+needless_question_mark = "allow"
+needless_return = "allow"
+non_ascii_idents = "allow"
+option_if_let_else = "allow"
+or_fun_call = "allow"
+path_buf_push_overwrite = "allow"
+pattern_type_mismatch = "allow"
+ptr_as_ptr = "allow"
+redundant_clone = "allow"
+redundant_else = "allow"
+redundant_feature_names = "allow"
+redundant_static_lifetimes = "allow"
+ref_binding_to_reference = "allow"
+ref_option_ref = "allow"
+same_functions_in_if_blocks = "allow"
+self_named_module_files = "allow"
+similar_names = "allow"
+single_char_lifetime_names = "allow"
+string_lit_as_bytes = "allow"
+string_to_string = "allow"
+todo = "allow"
+trivial_regex = "allow"
+type_repetition_in_bounds = "allow"
+unnecessary_join = "allow"
+unnecessary_lazy_evaluations = "allow"
+unnecessary_struct_initialization = "allow"
+unnecessary_wraps = "allow"
+unused_async = "allow"
+unused_self = "allow"
+use_debug = "allow"
+wildcard_dependencies = "allow" 
