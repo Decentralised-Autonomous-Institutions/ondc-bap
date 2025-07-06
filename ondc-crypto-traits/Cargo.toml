@@ -11,4 +11,5 @@ categories.workspace = true
 readme.workspace = true
 
 [dependencies]
-thiserror = { workspace = true } 
+thiserror = { workspace = true }
+zeroize = { workspace = true } 
