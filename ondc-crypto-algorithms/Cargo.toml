@@ -15,10 +15,13 @@ readme.workspace = true
 ondc-crypto-traits = { path = "../ondc-crypto-traits" }
 
 # Cryptographic dependencies
-ed25519-dalek = { workspace = true }
+ed25519-dalek = { workspace = true, features = ["rand_core"] }
 blake2b_simd = { workspace = true }
 x25519-dalek = { workspace = true }
 
 # Memory safety
 zeroize = { workspace = true }
-subtle = { workspace = true } 
+subtle = { workspace = true }
+
+# Random number generation
+rand = { workspace = true } 
