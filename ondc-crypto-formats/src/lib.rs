@@ -7,10 +7,32 @@ pub mod base64;
 pub mod key_formats;
 
 pub use base64::{decode_signature, encode_signature};
-pub use key_formats::{ed25519_from_raw, x25519_to_der};
+pub use key_formats::{
+    ed25519_from_raw, x25519_to_der,
+    // Ed25519 conversions
+    ed25519_private_key_to_base64, ed25519_private_key_from_base64,
+    ed25519_public_key_to_base64, ed25519_public_key_from_base64,
+    ed25519_private_key_to_der, ed25519_private_key_from_der,
+    // X25519 conversions
+    x25519_private_key_to_base64, x25519_private_key_from_base64,
+    x25519_public_key_to_base64, x25519_public_key_from_base64,
+    x25519_public_key_to_der, x25519_public_key_from_der,
+    x25519_private_key_to_der, x25519_private_key_from_der,
+};
 
 /// Re-export commonly used types
 pub mod prelude {
     pub use super::base64::{decode_signature, encode_signature};
-    pub use super::key_formats::{ed25519_from_raw, x25519_to_der};
+    pub use super::key_formats::{
+        ed25519_from_raw, x25519_to_der,
+        // Ed25519 conversions
+        ed25519_private_key_to_base64, ed25519_private_key_from_base64,
+        ed25519_public_key_to_base64, ed25519_public_key_from_base64,
+        ed25519_private_key_to_der, ed25519_private_key_from_der,
+        // X25519 conversions
+        x25519_private_key_to_base64, x25519_private_key_from_base64,
+        x25519_public_key_to_base64, x25519_public_key_from_base64,
+        x25519_public_key_to_der, x25519_public_key_from_der,
+        x25519_private_key_to_der, x25519_private_key_from_der,
+    };
 } 

@@ -18,5 +18,8 @@ ondc-crypto-traits = { path = "../ondc-crypto-traits" }
 base64 = { workspace = true }
 hex = { workspace = true }
 
+# DER encoding/decoding
+der = { version = "0.8.0-rc.6", features = ["alloc", "pem", "std"] }
+
 # Memory safety
 zeroize = { workspace = true } 
