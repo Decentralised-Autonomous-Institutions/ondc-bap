@@ -17,7 +17,7 @@ ondc-crypto-traits = { path = "../ondc-crypto-traits" }
 # Cryptographic dependencies
 ed25519-dalek = { workspace = true, features = ["rand_core"] }
 blake2b_simd = { workspace = true }
-x25519-dalek = { workspace = true }
+x25519-dalek = { workspace = true, features = ["static_secrets"] }
 
 # Memory safety
 zeroize = { workspace = true }
