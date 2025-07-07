@@ -28,7 +28,7 @@
 //! ```
 
 use der::{
-    asn1::{BitString, OctetString},
+    asn1::OctetString,
     Decode, Encode,
 };
 use ondc_crypto_traits::ONDCCryptoError;
@@ -531,10 +531,10 @@ pub fn x25519_public_key_to_der(raw_key: &[u8]) -> Result<Vec<u8>, ONDCCryptoErr
     }
 
     // Create DER structure for X25519 public key
-    let bit_string = BitString::new(0, raw_key)
+    let octet_string = OctetString::new(raw_key)
         .map_err(|e| ONDCCryptoError::EncodingError(format!("DER encoding failed: {}", e)))?;
 
-    bit_string
+    octet_string
         .to_der()
         .map_err(|e| ONDCCryptoError::EncodingError(format!("DER serialization failed: {}", e)))
 }
@@ -570,20 +570,20 @@ pub fn x25519_public_key_to_der(raw_key: &[u8]) -> Result<Vec<u8>, ONDCCryptoErr
 /// assert_eq!(&decoded_key, &raw_key);
 /// ```
 pub fn x25519_public_key_from_der(der_key: &[u8]) -> Result<[u8; 32], ONDCCryptoError> {
-    let bit_string = BitString::from_der(der_key)
+    let octet_string = OctetString::from_der(der_key)
         .map_err(|e| ONDCCryptoError::EncodingError(format!("DER decoding failed: {}", e)))?;
 
-    let key_bytes = bit_string.as_bytes();
+    let key_bytes = octet_string.as_bytes();
     
-    if key_bytes.as_slice().len() != 32 {
+    if key_bytes.len() != 32 {
         return Err(ONDCCryptoError::InvalidKeyLength {
             expected: 32,
-            got: key_bytes.as_slice().len(),
+            got: key_bytes.len(),
         });
     }
 
     let mut key = [0u8; 32];
-    key.copy_from_slice(key_bytes.unwrap());
+    key.copy_from_slice(key_bytes);
     Ok(key)
 }
 

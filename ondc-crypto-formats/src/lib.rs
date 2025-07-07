@@ -6,7 +6,12 @@
 pub mod base64;
 pub mod key_formats;
 
-pub use base64::{decode_signature, encode_signature};
+pub use base64::{
+    decode_signature, encode_signature,
+    decode_signature_secure, encode_signature_secure,
+    decode_signature_variant, encode_signature_variant,
+    is_valid_base64, Base64Variant,
+};
 pub use key_formats::{
     ed25519_from_raw, x25519_to_der,
     // Ed25519 conversions
@@ -22,7 +27,12 @@ pub use key_formats::{
 
 /// Re-export commonly used types
 pub mod prelude {
-    pub use super::base64::{decode_signature, encode_signature};
+    pub use super::base64::{
+        decode_signature, encode_signature,
+        decode_signature_secure, encode_signature_secure,
+        decode_signature_variant, encode_signature_variant,
+        is_valid_base64, Base64Variant,
+    };
     pub use super::key_formats::{
         ed25519_from_raw, x25519_to_der,
         // Ed25519 conversions
