@@ -15,8 +15,6 @@ readme.workspace = true
 ondc-crypto-traits = { path = "../ondc-crypto-traits" }
 ondc-crypto-algorithms = { path = "../ondc-crypto-algorithms" }
 ondc-crypto-formats = { path = "../ondc-crypto-formats" }
-ondc-crypto-http = { path = "../ondc-crypto-http" }
-ondc-crypto-utils = { path = "../ondc-crypto-utils" }
 
 # External dependencies
 chrono = { workspace = true }

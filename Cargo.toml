@@ -4,8 +4,6 @@ members = [
     "ondc-crypto-traits",
     "ondc-crypto-algorithms", 
     "ondc-crypto-formats",
-    "ondc-crypto-http",
-    "ondc-crypto-utils",
 ]
 
 resolver = "2"

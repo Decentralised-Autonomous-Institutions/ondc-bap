@@ -36,8 +36,6 @@
 pub use ondc_crypto_traits;
 pub use ondc_crypto_algorithms;
 pub use ondc_crypto_formats;
-pub use ondc_crypto_http;
-pub use ondc_crypto_utils;
 
 // Main API
 pub mod api;
@@ -53,8 +51,6 @@ pub mod prelude {
     pub use ondc_crypto_traits::prelude::*;
     pub use ondc_crypto_algorithms::prelude::*;
     pub use ondc_crypto_formats::prelude::*;
-    pub use ondc_crypto_http::prelude::*;
-    pub use ondc_crypto_utils::prelude::*;
 }
 
 pub fn add(left: u64, right: u64) -> u64 {
