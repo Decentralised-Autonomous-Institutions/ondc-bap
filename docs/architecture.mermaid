@@ -1,479 +1,541 @@
 %% ============================================================================
-%% 1. Crate Dependency Architecture
+%% 1. ONDC BAP Server - High Level Architecture
 %% ============================================================================
 
 graph TB
-    subgraph "ONDC Rust SDK - Crate Dependencies"
+    subgraph "ONDC BAP Server Architecture"
         direction TB
         
-        %% Main SDK Crate
-        SDK[ondc-crypto<br/>📦 Main SDK<br/>High-level API]
-        
-        %% Core Crates
-        TRAITS[ondc-crypto-traits<br/>🎯 Core Traits & Errors<br/>Foundation types]
-        ALGO[ondc-crypto-algorithms<br/>🔐 Ed25519 & Blake2<br/>Crypto implementations]
-        FORMATS[ondc-crypto-formats<br/>📄 Encoding/Decoding<br/>Format conversions]
-        HTTP[ondc-crypto-http<br/>🌐 HTTP Signatures<br/>ONDC protocol layer]
-        UTILS[ondc-crypto-utils<br/>🛠️ Utilities<br/>Helper functions]
-        
-        %% External Dependencies
-        subgraph "External Dependencies"
-            ED25519[ed25519-dalek<br/>🔑 EdDSA signing]
-            BLAKE2[blake2b_simd<br/>🏃 Fast hashing]
-            BASE64[base64<br/>📝 Encoding]
-            ZEROIZE[zeroize<br/>🔒 Memory safety]
-            CHRONO[chrono<br/>⏰ Time handling]
-            THISERROR[thiserror<br/>❌ Error types]
+        %% External Systems
+        subgraph "External Systems"
+            ONDC_REGISTRY[🌐 ONDC Registry<br/>staging/preprod/prod]
+            SSL_PROVIDER[🔒 SSL Certificate<br/>Provider]
+            DNS_PROVIDER[🌍 DNS Provider<br/>Domain Management]
         end
         
-        %% Dependencies
-        SDK --> TRAITS
-        SDK --> ALGO
-        SDK --> FORMATS
-        SDK --> HTTP
-        SDK --> UTILS
+        %% BAP Server Layers
+        subgraph "ONDC BAP Server"
+            direction TB
+            
+            %% Presentation Layer
+            subgraph "🎯 Presentation Layer (Axum)"
+                HTTP_SERVER[HTTP Server<br/>Axum Router]
+                MIDDLEWARE[Middleware Stack<br/>CORS, Logging, Auth]
+                
+                subgraph "Endpoints"
+                    SITE_VERIFY["/ondc-site-verification.html"]
+                    ON_SUBSCRIBE["/on_subscribe"]
+                    HEALTH["/health"]
+                    ADMIN_API["/admin/*"]
+                end
+            end
+            
+            %% Services Layer
+            subgraph "⚙️ Services Layer"
+                ONBOARD_SVC[Onboarding Service]
+                KEY_MGR_SVC[Key Management Service]
+                REGISTRY_SVC[Registry Client Service]
+                CHALLENGE_SVC[Challenge Handler Service]
+            end
+            
+            %% Domain Layer
+            subgraph "🏛️ Domain Layer"
+                SUBSCRIBER[Subscriber Entity]
+                CHALLENGE[Challenge Entity]
+                REGISTRATION[Registration Entity]
+                KEY_PAIR[KeyPair Value Object]
+                DOMAIN_RULES[Domain Rules & Validation]
+            end
+            
+            %% Infrastructure Layer
+            subgraph "🔧 Infrastructure Layer"
+                CONFIG_MGR[Configuration Manager]
+                HTTP_CLIENT[HTTP Client<br/>Registry APIs]
+                FILE_SYS[File System<br/>Key Storage]
+                LOGGER[Logging & Tracing]
+            end
+        end
         
-        ALGO --> TRAITS
-        ALGO --> ED25519
-        ALGO --> BLAKE2
-        ALGO --> ZEROIZE
+        %% Crypto Components
+        subgraph "🔐 Crypto Foundation"
+            ED25519_SIGNER[Ed25519 Signer<br/>ondc-crypto-algorithms]
+            X25519_EXCHANGE[X25519 KeyExchange<br/>ondc-crypto-algorithms]
+            BASE64_UTILS[Base64 Utils<br/>ondc-crypto-formats]
+            BLAKE2_HASHER[Blake2 Hasher<br/>ondc-crypto-algorithms]
+        end
         
-        FORMATS --> TRAITS
-        FORMATS --> BASE64
-        FORMATS --> ZEROIZE
+        %% Connections - External
+        ONDC_REGISTRY <--> HTTP_CLIENT
+        SSL_PROVIDER --> HTTP_SERVER
+        DNS_PROVIDER --> HTTP_SERVER
         
-        HTTP --> TRAITS
-        HTTP --> ALGO
-        HTTP --> FORMATS
-        HTTP --> CHRONO
+        %% Connections - Internal Layers
+        HTTP_SERVER --> MIDDLEWARE
+        MIDDLEWARE --> SITE_VERIFY
+        MIDDLEWARE --> ON_SUBSCRIBE
+        MIDDLEWARE --> HEALTH
+        MIDDLEWARE --> ADMIN_API
         
-        UTILS --> TRAITS
-        UTILS --> CHRONO
+        SITE_VERIFY --> ONBOARD_SVC
+        ON_SUBSCRIBE --> CHALLENGE_SVC
+        ADMIN_API --> ONBOARD_SVC
+        ADMIN_API --> KEY_MGR_SVC
         
-        TRAITS --> THISERROR
+        ONBOARD_SVC --> REGISTRY_SVC
+        ONBOARD_SVC --> KEY_MGR_SVC
+        CHALLENGE_SVC --> KEY_MGR_SVC
+        REGISTRY_SVC --> HTTP_CLIENT
+        
+        KEY_MGR_SVC --> SUBSCRIBER
+        ONBOARD_SVC --> REGISTRATION
+        CHALLENGE_SVC --> CHALLENGE
+        
+        SUBSCRIBER --> KEY_PAIR
+        REGISTRATION --> DOMAIN_RULES
+        CHALLENGE --> DOMAIN_RULES
+        
+        KEY_MGR_SVC --> ED25519_SIGNER
+        KEY_MGR_SVC --> X25519_EXCHANGE
+        REGISTRY_SVC --> BASE64_UTILS
+        CHALLENGE_SVC --> X25519_EXCHANGE
+        
+        CONFIG_MGR --> FILE_SYS
+        HTTP_CLIENT --> LOGGER
+        KEY_MGR_SVC --> FILE_SYS
         
         %% Styling
-        classDef mainCrate fill:#e1f5fe,stroke:#01579b,stroke-width:3px
-        classDef coreCrate fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-        classDef externalCrate fill:#fff3e0,stroke:#e65100,stroke-width:1px
+        classDef externalSystem fill:#ffebcd,stroke:#d2691e,stroke-width:2px
+        classDef presentationLayer fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+        classDef applicationLayer fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+        classDef domainLayer fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+        classDef infrastructureLayer fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+        classDef cryptoLayer fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
         
-        class SDK mainCrate
-        class TRAITS,ALGO,FORMATS,HTTP,UTILS coreCrate
-        class ED25519,BLAKE2,BASE64,ZEROIZE,CHRONO,THISERROR externalCrate
+        class ONDC_REGISTRY,SSL_PROVIDER,DNS_PROVIDER externalSystem
+        class HTTP_SERVER,MIDDLEWARE,SITE_VERIFY,ON_SUBSCRIBE,HEALTH,ADMIN_API presentationLayer
+        class ONBOARD_SVC,KEY_MGR_SVC,REGISTRY_SVC,CHALLENGE_SVC applicationLayer
+        class SUBSCRIBER,CHALLENGE,REGISTRATION,KEY_PAIR,DOMAIN_RULES domainLayer
+        class CONFIG_MGR,HTTP_CLIENT,FILE_SYS,LOGGER infrastructureLayer
+        class ED25519_SIGNER,X25519_EXCHANGE,BASE64_UTILS,BLAKE2_HASHER cryptoLayer
     end
 
 ---
 
 %% ============================================================================
-%% 2. Module Interaction Flow
+%% 2. ONDC Onboarding Flow Sequence
+%% ============================================================================
+
+sequenceDiagram
+    participant Admin as 👤 Administrator
+    participant BAP as 🖥️ BAP Server
+    participant Registry as 🌐 ONDC Registry
+    participant FS as 💾 File System
+    
+    Note over Admin,FS: ONDC Network Participant Onboarding Flow
+    
+    %% Prerequisites Check
+    Admin->>BAP: POST /admin/register
+    BAP->>FS: Load signing/encryption keys
+    FS-->>BAP: Private keys
+    BAP->>BAP: Validate domain & SSL
+    BAP->>BAP: Generate request_id
+    
+    %% Site Verification Setup
+    BAP->>BAP: Sign request_id with Ed25519
+    BAP->>FS: Store signed verification
+    Note over BAP: Site verification ready at /ondc-site-verification.html
+    
+    %% Registry Registration
+    BAP->>Registry: POST /subscribe
+    Note right of Registry: Payload includes:<br/>- subscriber_id<br/>- public keys<br/>- callback_url
+    
+    Registry->>Registry: Validate payload schema
+    Registry->>Registry: Perform OCSP check
+    Registry->>BAP: GET /ondc-site-verification.html
+    BAP-->>Registry: Signed verification HTML
+    Registry->>Registry: Verify domain signature
+    
+    %% Challenge-Response
+    Registry->>BAP: POST /on_subscribe
+    Note right of Registry: Contains encrypted challenge
+    BAP->>BAP: Generate X25519 shared secret
+    BAP->>BAP: Decrypt challenge with AES-256-ECB
+    BAP-->>Registry: { "answer": "decrypted_challenge" }
+    
+    Registry->>Registry: Validate challenge response
+    Registry-->>BAP: Registration success/failure
+    BAP-->>Admin: Registration status
+    
+    %% Verification
+    Admin->>BAP: GET /admin/status
+    BAP->>Registry: POST /v2.0/lookup
+    Registry-->>BAP: Participant record
+    BAP-->>Admin: Registration confirmed
+
+---
+
+%% ============================================================================
+%% 3. BAP Server Request Processing Flow
 %% ============================================================================
 
 graph LR
-    subgraph "ONDC Request Signing Flow"
+    subgraph "Request Processing Architecture"
         direction LR
         
-        %% Input
-        USER[👤 Developer]
-        BODY[📄 Request Body]
-        PRIV_KEY[🔑 Private Key]
-        CONFIG[⚙️ Config]
+        %% Incoming Requests
+        CLIENT[📱 Client Request]
+        REGISTRY_REQ[🌐 Registry Request]
         
-        %% Core Modules
-        subgraph "ondc-crypto-traits"
-            SIGNER_TRAIT[Signer Trait]
-            HASHER_TRAIT[Hasher Trait]
-            ERROR_TYPES[Error Types]
+        %% Axum Router
+        subgraph "Axum Router & Middleware"
+            ROUTER[Router]
+            AUTH_MW[Auth Middleware]
+            LOG_MW[Logging Middleware]
+            CORS_MW[CORS Middleware]
+            ERROR_MW[Error Middleware]
         end
         
-        subgraph "ondc-crypto-algorithms"
-            ED25519_SIGNER[Ed25519Signer]
-            BLAKE2_HASHER[Blake2Hasher]
+        %% Handlers
+        subgraph "Request Handlers"
+            SITE_HANDLER[Site Verification Handler]
+            SUBSCRIBE_HANDLER[On Subscribe Handler]
+            ADMIN_HANDLER[Admin Handler]
+            HEALTH_HANDLER[Health Handler]
         end
         
-        subgraph "ondc-crypto-formats"
-            BASE64_ENCODER[Base64 Encoder]
-            KEY_CONVERTER[Key Converter]
+        %% Services
+        subgraph "Application Services"
+            ONBOARD_SERVICE[Onboarding Service]
+            KEY_SERVICE[Key Management]
+            REGISTRY_CLIENT[Registry Client]
+            CRYPTO_SERVICE[Crypto Operations]
         end
         
-        subgraph "ondc-crypto-http"
-            SIGNING_STRING[SigningString Builder]
-            AUTH_HEADER[AuthHeader Builder]
-            TIMESTAMP[Timestamp Manager]
-        end
-        
-        subgraph "ondc-crypto (Main SDK)"
-            ONDC_CRYPTO[ONDCCrypto API]
-        end
+        %% External
+        ONDC_API[🌐 ONDC Registry API]
+        FILE_STORAGE[💾 Key Storage]
         
         %% Flow
-        USER --> ONDC_CRYPTO
-        BODY --> ONDC_CRYPTO
-        PRIV_KEY --> ONDC_CRYPTO
-        CONFIG --> ONDC_CRYPTO
+        CLIENT --> ROUTER
+        REGISTRY_REQ --> ROUTER
         
-        ONDC_CRYPTO --> SIGNING_STRING
-        ONDC_CRYPTO --> AUTH_HEADER
-        ONDC_CRYPTO --> ED25519_SIGNER
+        ROUTER --> AUTH_MW
+        AUTH_MW --> LOG_MW
+        LOG_MW --> CORS_MW
+        CORS_MW --> ERROR_MW
         
-        SIGNING_STRING --> BLAKE2_HASHER
-        SIGNING_STRING --> TIMESTAMP
+        ERROR_MW --> SITE_HANDLER
+        ERROR_MW --> SUBSCRIBE_HANDLER
+        ERROR_MW --> ADMIN_HANDLER
+        ERROR_MW --> HEALTH_HANDLER
         
-        AUTH_HEADER --> BASE64_ENCODER
-        AUTH_HEADER --> KEY_CONVERTER
+        SITE_HANDLER --> ONBOARD_SERVICE
+        SUBSCRIBE_HANDLER --> CRYPTO_SERVICE
+        ADMIN_HANDLER --> ONBOARD_SERVICE
+        HEALTH_HANDLER --> REGISTRY_CLIENT
         
-        ED25519_SIGNER -.-> SIGNER_TRAIT
-        BLAKE2_HASHER -.-> HASHER_TRAIT
+        ONBOARD_SERVICE --> KEY_SERVICE
+        ONBOARD_SERVICE --> REGISTRY_CLIENT
+        CRYPTO_SERVICE --> KEY_SERVICE
         
-        %% Output
-        ONDC_CRYPTO --> RESULT[✅ Authorization Header]
+        REGISTRY_CLIENT --> ONDC_API
+        KEY_SERVICE --> FILE_STORAGE
         
         %% Styling
-        classDef inputNode fill:#c8e6c9,stroke:#2e7d32
-        classDef processNode fill:#e3f2fd,stroke:#1565c0
-        classDef outputNode fill:#fff3e0,stroke:#f57c00
-        classDef traitNode fill:#fce4ec,stroke:#c2185b
+        classDef clientLayer fill:#e8f5e8,stroke:#2e7d32
+        classDef middlewareLayer fill:#e3f2fd,stroke:#1565c0
+        classDef handlerLayer fill:#fff3e0,stroke:#ef6c00
+        classDef serviceLayer fill:#fce4ec,stroke:#c2185b
+        classDef externalLayer fill:#f3e5f5,stroke:#7b1fa2
         
-        class USER,BODY,PRIV_KEY,CONFIG inputNode
-        class ED25519_SIGNER,BLAKE2_HASHER,BASE64_ENCODER,KEY_CONVERTER,SIGNING_STRING,AUTH_HEADER,TIMESTAMP,ONDC_CRYPTO processNode
-        class RESULT outputNode
-        class SIGNER_TRAIT,HASHER_TRAIT,ERROR_TYPES traitNode
+        class CLIENT,REGISTRY_REQ clientLayer
+        class ROUTER,AUTH_MW,LOG_MW,CORS_MW,ERROR_MW middlewareLayer
+        class SITE_HANDLER,SUBSCRIBE_HANDLER,ADMIN_HANDLER,HEALTH_HANDLER handlerLayer
+        class ONBOARD_SERVICE,KEY_SERVICE,REGISTRY_CLIENT,CRYPTO_SERVICE serviceLayer
+        class ONDC_API,FILE_STORAGE externalLayer
     end
 
 ---
 
 %% ============================================================================
-%% 3. ONDC Request Verification Flow
-%% ============================================================================
-
-graph LR
-    subgraph "ONDC Request Verification Flow"
-        direction LR
-        
-        %% Input
-        VERIFIER_USER[👤 Verifier]
-        AUTH_HDR[🔐 Authorization Header]
-        REQ_BODY[📄 Request Body]
-        PUB_KEY[🔓 Public Key]
-        
-        %% Processing Modules
-        subgraph "Parsing & Validation"
-            HEADER_PARSER[Header Parser]
-            TIMESTAMP_VALIDATOR[Timestamp Validator]
-            FORMAT_VALIDATOR[Format Validator]
-        end
-        
-        subgraph "Signature Reconstruction"
-            SIGNING_STRING_REBUILD[SigningString Rebuilder]
-            DIGEST_REBUILD[Digest Rebuilder]
-        end
-        
-        subgraph "Cryptographic Verification"
-            ED25519_VERIFIER[Ed25519Verifier]
-            CONSTANT_TIME_CMP[Constant-Time Compare]
-        end
-        
-        %% Flow
-        VERIFIER_USER --> HEADER_PARSER
-        AUTH_HDR --> HEADER_PARSER
-        REQ_BODY --> SIGNING_STRING_REBUILD
-        PUB_KEY --> ED25519_VERIFIER
-        
-        HEADER_PARSER --> TIMESTAMP_VALIDATOR
-        HEADER_PARSER --> FORMAT_VALIDATOR
-        HEADER_PARSER --> SIGNING_STRING_REBUILD
-        
-        SIGNING_STRING_REBUILD --> DIGEST_REBUILD
-        DIGEST_REBUILD --> ED25519_VERIFIER
-        
-        ED25519_VERIFIER --> CONSTANT_TIME_CMP
-        
-        %% Output
-        CONSTANT_TIME_CMP --> VERIFICATION_RESULT{✅ Valid Signature?}
-        VERIFICATION_RESULT -->|Yes| SUCCESS[✅ Request Verified]
-        VERIFICATION_RESULT -->|No| FAILURE[❌ Verification Failed]
-        
-        %% Error Paths
-        TIMESTAMP_VALIDATOR -->|Invalid| TIMESTAMP_ERROR[❌ Timestamp Error]
-        FORMAT_VALIDATOR -->|Invalid| FORMAT_ERROR[❌ Format Error]
-        
-        %% Styling
-        classDef inputNode fill:#c8e6c9,stroke:#2e7d32
-        classDef processNode fill:#e3f2fd,stroke:#1565c0
-        classDef decisionNode fill:#fff9c4,stroke:#f9a825
-        classDef successNode fill:#c8e6c9,stroke:#2e7d32
-        classDef errorNode fill:#ffcdd2,stroke:#d32f2f
-        
-        class VERIFIER_USER,AUTH_HDR,REQ_BODY,PUB_KEY inputNode
-        class HEADER_PARSER,TIMESTAMP_VALIDATOR,FORMAT_VALIDATOR,SIGNING_STRING_REBUILD,DIGEST_REBUILD,ED25519_VERIFIER,CONSTANT_TIME_CMP processNode
-        class VERIFICATION_RESULT decisionNode
-        class SUCCESS successNode
-        class FAILURE,TIMESTAMP_ERROR,FORMAT_ERROR errorNode
-    end
-
----
-
-%% ============================================================================
-%% 4. API Layer Architecture
+%% 4. Key Management and Crypto Operations
 %% ============================================================================
 
 graph TB
-    subgraph "ONDC Crypto SDK - API Layers"
+    subgraph "Key Management & Crypto Architecture"
         direction TB
         
-        %% User Interface Layer
-        subgraph "🌐 User Interface Layer"
-            SYNC_API[Synchronous API<br/>ONDCCrypto::create_authorization_header]
-            ASYNC_API[Asynchronous API<br/>ONDCCrypto::create_authorization_header_async]
-            BUILDER_API[Builder Pattern API<br/>AuthorizationHeaderBuilder]
+        %% Configuration
+        subgraph "🔧 Configuration Layer"
+            ENV_CONFIG[Environment Config<br/>TOML/JSON]
+            KEY_CONFIG[Key Configuration<br/>Base64/DER formats]
+            ONDC_CONFIG[ONDC Settings<br/>Registry URLs, timeouts]
         end
         
-        %% Business Logic Layer
-        subgraph "🎯 Business Logic Layer"
-            ONDC_PROTOCOL[ONDC Protocol Handler<br/>HTTP signature validation]
-            KEY_MANAGEMENT[Key Management<br/>Key validation & conversion]
-            TIMESTAMP_LOGIC[Timestamp Logic<br/>Expiry & tolerance handling]
+        %% Key Management
+        subgraph "🔑 Key Management Service"
+            KEY_LOADER[Key Loader<br/>Secure loading]
+            KEY_VALIDATOR[Key Validator<br/>Format & length checks]
+            KEY_STORAGE[Key Storage<br/>Memory-safe handling]
+            KEY_ROTATOR[Key Rotation<br/>Lifecycle management]
         end
         
-        %% Core Services Layer
-        subgraph "🔧 Core Services Layer"
-            SIGNING_SERVICE[Signing Service<br/>Ed25519 operations]
-            HASHING_SERVICE[Hashing Service<br/>Blake2 operations]
-            ENCODING_SERVICE[Encoding Service<br/>Base64 operations]
+        %% Crypto Operations
+        subgraph "🔐 Crypto Operations Service"
+            SIGN_OPS[Signing Operations<br/>Ed25519 signing]
+            VERIFY_OPS[Verification Operations<br/>Signature validation]
+            EXCHANGE_OPS[Key Exchange<br/>X25519 ECDH]
+            ENCRYPT_OPS[Encryption/Decryption<br/>AES-256-ECB]
         end
         
-        %% Infrastructure Layer
-        subgraph "⚡ Infrastructure Layer"
-            CRYPTO_PRIMITIVES[Crypto Primitives<br/>ed25519-dalek, blake2b_simd]
-            MEMORY_SAFETY[Memory Safety<br/>zeroize, subtle]
-            ERROR_HANDLING[Error Handling<br/>thiserror, structured errors]
+        %% Crypto Algorithms
+        subgraph "⚙️ Crypto Algorithms (ondc-crypto-algorithms)"
+            ED25519_ALG[Ed25519Signer<br/>Ed25519Verifier]
+            X25519_ALG[X25519KeyExchange<br/>Shared secret generation]
+            BLAKE2_ALG[Blake2Hasher<br/>Digest generation]
         end
+        
+        %% Format Utilities
+        subgraph "📄 Format Utils (ondc-crypto-formats)"
+            BASE64_FMT[Base64 Encoding<br/>Multiple variants]
+            KEY_FMT[Key Format Conversion<br/>Raw/Base64/DER]
+            ENCODING_FMT[Encoding Utilities<br/>Safe conversions]
+        end
+        
+        %% External Storage
+        FILE_SYS[💾 File System<br/>Secure key files]
+        ENV_VARS[🌍 Environment Variables<br/>Runtime configuration]
         
         %% Connections
-        SYNC_API --> ONDC_PROTOCOL
-        ASYNC_API --> ONDC_PROTOCOL
-        BUILDER_API --> ONDC_PROTOCOL
+        ENV_CONFIG --> KEY_LOADER
+        KEY_CONFIG --> KEY_LOADER
+        ONDC_CONFIG --> KEY_LOADER
         
-        ONDC_PROTOCOL --> KEY_MANAGEMENT
-        ONDC_PROTOCOL --> TIMESTAMP_LOGIC
-        ONDC_PROTOCOL --> SIGNING_SERVICE
+        KEY_LOADER --> KEY_VALIDATOR
+        KEY_VALIDATOR --> KEY_STORAGE
+        KEY_STORAGE --> KEY_ROTATOR
         
-        KEY_MANAGEMENT --> ENCODING_SERVICE
-        TIMESTAMP_LOGIC --> HASHING_SERVICE
+        KEY_STORAGE --> SIGN_OPS
+        KEY_STORAGE --> VERIFY_OPS
+        KEY_STORAGE --> EXCHANGE_OPS
+        KEY_STORAGE --> ENCRYPT_OPS
         
-        SIGNING_SERVICE --> CRYPTO_PRIMITIVES
-        HASHING_SERVICE --> CRYPTO_PRIMITIVES
-        ENCODING_SERVICE --> CRYPTO_PRIMITIVES
+        SIGN_OPS --> ED25519_ALG
+        VERIFY_OPS --> ED25519_ALG
+        EXCHANGE_OPS --> X25519_ALG
+        ENCRYPT_OPS --> X25519_ALG
         
-        CRYPTO_PRIMITIVES --> MEMORY_SAFETY
-        CRYPTO_PRIMITIVES --> ERROR_HANDLING
+        SIGN_OPS --> BASE64_FMT
+        VERIFY_OPS --> BASE64_FMT
+        EXCHANGE_OPS --> KEY_FMT
+        ENCRYPT_OPS --> ENCODING_FMT
+        
+        KEY_LOADER --> FILE_SYS
+        KEY_LOADER --> ENV_VARS
         
         %% Styling
-        classDef uiLayer fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-        classDef businessLayer fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-        classDef serviceLayer fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
-        classDef infraLayer fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+        classDef configLayer fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+        classDef keyMgmtLayer fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+        classDef cryptoOpsLayer fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+        classDef algorithmsLayer fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+        classDef formatLayer fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+        classDef storageLayer fill:#fff8e1,stroke:#f57c00,stroke-width:2px
         
-        class SYNC_API,ASYNC_API,BUILDER_API uiLayer
-        class ONDC_PROTOCOL,KEY_MANAGEMENT,TIMESTAMP_LOGIC businessLayer
-        class SIGNING_SERVICE,HASHING_SERVICE,ENCODING_SERVICE serviceLayer
-        class CRYPTO_PRIMITIVES,MEMORY_SAFETY,ERROR_HANDLING infraLayer
+        class ENV_CONFIG,KEY_CONFIG,ONDC_CONFIG configLayer
+        class KEY_LOADER,KEY_VALIDATOR,KEY_STORAGE,KEY_ROTATOR keyMgmtLayer
+        class SIGN_OPS,VERIFY_OPS,EXCHANGE_OPS,ENCRYPT_OPS cryptoOpsLayer
+        class ED25519_ALG,X25519_ALG,BLAKE2_ALG algorithmsLayer
+        class BASE64_FMT,KEY_FMT,ENCODING_FMT formatLayer
+        class FILE_SYS,ENV_VARS storageLayer
     end
 
 ---
 
 %% ============================================================================
-%% 5. Error Handling Flow
+%% 5. Error Handling and Security Architecture
 %% ============================================================================
 
 graph TD
-    subgraph "Error Handling Architecture"
+    subgraph "Error Handling & Security Architecture"
         direction TD
         
         %% Error Sources
         subgraph "🚨 Error Sources"
-            USER_INPUT[Invalid User Input]
-            CRYPTO_ERROR[Cryptographic Failure]
-            FORMAT_ERROR[Format/Encoding Error]
-            TIMESTAMP_ERROR[Timestamp Validation]
-            NETWORK_ERROR[Network/Protocol Error]
+            HTTP_ERRORS[HTTP Request Errors<br/>4xx, 5xx responses]
+            CRYPTO_ERRORS[Cryptographic Errors<br/>Invalid keys, signatures]
+            REGISTRY_ERRORS[Registry API Errors<br/>Network, protocol issues]
+            CONFIG_ERRORS[Configuration Errors<br/>Missing keys, invalid URLs]
+            VALIDATION_ERRORS[Validation Errors<br/>Invalid payloads, formats]
         end
         
         %% Error Processing
-        subgraph "⚙️ Error Processing"
-            ERROR_CLASSIFICATION[Error Classification]
-            CONTEXT_ENRICHMENT[Context Enrichment]
-            ERROR_CONVERSION[Error Type Conversion]
+        subgraph "⚙️ Error Processing Pipeline"
+            ERROR_CLASSIFIER[Error Classification<br/>Categorize error types]
+            ERROR_ENRICHER[Context Enrichment<br/>Add correlation IDs]
+            ERROR_CONVERTER[Error Conversion<br/>Internal → HTTP responses]
+            ERROR_LOGGER[Error Logging<br/>Structured logging]
+            ERROR_METRICS[Error Metrics<br/>Monitoring & alerting]
         end
         
-        %% Error Types
-        subgraph "📋 Structured Error Types"
-            ONDC_CRYPTO_ERROR[ONDCCryptoError<br/>Main error enum]
-            VERIFICATION_FAILED[VerificationFailed]
-            INVALID_KEY_LENGTH[InvalidKeyLength]
-            ENCODING_ERROR[EncodingError]
-            INVALID_TIMESTAMP[InvalidTimestamp]
-            PROTOCOL_ERROR[ProtocolError]
-            CONFIG_ERROR[ConfigError]
+        %% Security Measures
+        subgraph "🛡️ Security Measures"
+            MEMORY_SAFETY[Memory Safety<br/>Automatic zeroization]
+            TIMING_PROTECTION[Timing Attack Protection<br/>Constant-time operations]
+            KEY_PROTECTION[Key Protection<br/>Secure storage & handling]
+            TLS_CONFIG[TLS Configuration<br/>Strong cipher suites]
+            RATE_LIMITING[Rate Limiting<br/>DOS protection]
         end
         
-        %% Error Handling
-        subgraph "🛠️ Error Handling"
-            ERROR_RECOVERY[Error Recovery Logic]
-            LOGGING[Error Logging]
-            USER_FEEDBACK[User-Friendly Messages]
+        %% Monitoring & Observability
+        subgraph "📊 Monitoring & Observability"
+            HEALTH_CHECKS[Health Checks<br/>System status monitoring]
+            METRICS_COLLECTION[Metrics Collection<br/>Performance tracking]
+            DISTRIBUTED_TRACING[Distributed Tracing<br/>Request correlation]
+            LOG_AGGREGATION[Log Aggregation<br/>Centralized logging]
+            ALERTING[Alerting<br/>Incident response]
         end
         
-        %% Flow
-        USER_INPUT --> ERROR_CLASSIFICATION
-        CRYPTO_ERROR --> ERROR_CLASSIFICATION
-        FORMAT_ERROR --> ERROR_CLASSIFICATION
-        TIMESTAMP_ERROR --> ERROR_CLASSIFICATION
-        NETWORK_ERROR --> ERROR_CLASSIFICATION
+        %% Recovery & Resilience
+        subgraph "🔄 Recovery & Resilience"
+            RETRY_LOGIC[Retry Logic<br/>Exponential backoff]
+            CIRCUIT_BREAKER[Circuit Breaker<br/>Failure isolation]
+            GRACEFUL_DEGRADATION[Graceful Degradation<br/>Partial functionality]
+            BACKUP_RECOVERY[Backup & Recovery<br/>Data persistence]
+            DISASTER_RECOVERY[Disaster Recovery<br/>System restoration]
+        end
         
-        ERROR_CLASSIFICATION --> CONTEXT_ENRICHMENT
-        CONTEXT_ENRICHMENT --> ERROR_CONVERSION
+        %% Flow connections
+        HTTP_ERRORS --> ERROR_CLASSIFIER
+        CRYPTO_ERRORS --> ERROR_CLASSIFIER
+        REGISTRY_ERRORS --> ERROR_CLASSIFIER
+        CONFIG_ERRORS --> ERROR_CLASSIFIER
+        VALIDATION_ERRORS --> ERROR_CLASSIFIER
         
-        ERROR_CONVERSION --> ONDC_CRYPTO_ERROR
-        ONDC_CRYPTO_ERROR --> VERIFICATION_FAILED
-        ONDC_CRYPTO_ERROR --> INVALID_KEY_LENGTH
-        ONDC_CRYPTO_ERROR --> ENCODING_ERROR
-        ONDC_CRYPTO_ERROR --> INVALID_TIMESTAMP
-        ONDC_CRYPTO_ERROR --> PROTOCOL_ERROR
-        ONDC_CRYPTO_ERROR --> CONFIG_ERROR
+        ERROR_CLASSIFIER --> ERROR_ENRICHER
+        ERROR_ENRICHER --> ERROR_CONVERTER
+        ERROR_CONVERTER --> ERROR_LOGGER
+        ERROR_LOGGER --> ERROR_METRICS
         
-        VERIFICATION_FAILED --> ERROR_RECOVERY
-        INVALID_KEY_LENGTH --> ERROR_RECOVERY
-        ENCODING_ERROR --> ERROR_RECOVERY
-        INVALID_TIMESTAMP --> ERROR_RECOVERY
-        PROTOCOL_ERROR --> ERROR_RECOVERY
-        CONFIG_ERROR --> ERROR_RECOVERY
+        ERROR_METRICS --> HEALTH_CHECKS
+        ERROR_METRICS --> METRICS_COLLECTION
+        ERROR_METRICS --> ALERTING
         
-        ERROR_RECOVERY --> LOGGING
-        ERROR_RECOVERY --> USER_FEEDBACK
+        MEMORY_SAFETY --> KEY_PROTECTION
+        TIMING_PROTECTION --> KEY_PROTECTION
+        KEY_PROTECTION --> TLS_CONFIG
+        TLS_CONFIG --> RATE_LIMITING
+        
+        HEALTH_CHECKS --> RETRY_LOGIC
+        METRICS_COLLECTION --> CIRCUIT_BREAKER
+        DISTRIBUTED_TRACING --> GRACEFUL_DEGRADATION
+        LOG_AGGREGATION --> BACKUP_RECOVERY
+        ALERTING --> DISASTER_RECOVERY
         
         %% Styling
         classDef errorSource fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px
         classDef errorProcess fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-        classDef errorType fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
-        classDef errorHandle fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+        classDef security fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+        classDef monitoring fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+        classDef resilience fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
         
-        class USER_INPUT,CRYPTO_ERROR,FORMAT_ERROR,TIMESTAMP_ERROR,NETWORK_ERROR errorSource
-        class ERROR_CLASSIFICATION,CONTEXT_ENRICHMENT,ERROR_CONVERSION errorProcess
-        class ONDC_CRYPTO_ERROR,VERIFICATION_FAILED,INVALID_KEY_LENGTH,ENCODING_ERROR,INVALID_TIMESTAMP,PROTOCOL_ERROR,CONFIG_ERROR errorType
-        class ERROR_RECOVERY,LOGGING,USER_FEEDBACK errorHandle
+        class HTTP_ERRORS,CRYPTO_ERRORS,REGISTRY_ERRORS,CONFIG_ERRORS,VALIDATION_ERRORS errorSource
+        class ERROR_CLASSIFIER,ERROR_ENRICHER,ERROR_CONVERTER,ERROR_LOGGER,ERROR_METRICS errorProcess
+        class MEMORY_SAFETY,TIMING_PROTECTION,KEY_PROTECTION,TLS_CONFIG,RATE_LIMITING security
+        class HEALTH_CHECKS,METRICS_COLLECTION,DISTRIBUTED_TRACING,LOG_AGGREGATION,ALERTING monitoring
+        class RETRY_LOGIC,CIRCUIT_BREAKER,GRACEFUL_DEGRADATION,BACKUP_RECOVERY,DISASTER_RECOVERY resilience
     end
 
 ---
 
 %% ============================================================================
-%% 6. Data Flow for Complete ONDC Transaction
-%% ============================================================================
-
-sequenceDiagram
-    participant Dev as 👤 Developer
-    participant SDK as 📦 ONDC Crypto SDK
-    participant Traits as 🎯 Traits
-    participant Algo as 🔐 Algorithms
-    participant HTTP as 🌐 HTTP Module
-    participant Network as 🌍 ONDC Network
-    
-    Note over Dev,Network: ONDC Request Signing & Sending
-    
-    Dev->>SDK: create_authorization_header(body, subscriber_id, key_id)
-    SDK->>HTTP: create_signing_string(body, timestamps)
-    HTTP->>Algo: hash(body) using Blake2
-    Algo->>HTTP: return digest
-    HTTP->>SDK: return signing_string
-    
-    SDK->>Algo: sign(signing_string, private_key)
-    Algo->>Traits: use Signer trait
-    Traits->>Algo: return signature
-    Algo->>SDK: return signature
-    
-    SDK->>HTTP: format_authorization_header(signature, metadata)
-    HTTP->>SDK: return formatted header
-    SDK->>Dev: return authorization header
-    
-    Dev->>Network: send request with authorization header
-    
-    Note over Dev,Network: ONDC Response Verification
-    
-    Network->>Dev: response with authorization header
-    Dev->>SDK: verify_authorization_header(header, body, public_key)
-    
-    SDK->>HTTP: parse_authorization_header(header)
-    HTTP->>SDK: return parsed components
-    
-    SDK->>HTTP: validate_timestamps(created, expires)
-    HTTP->>SDK: validation result
-    
-    SDK->>HTTP: reconstruct_signing_string(body, timestamps)
-    HTTP->>Algo: hash(body) using Blake2
-    Algo->>HTTP: return digest
-    HTTP->>SDK: return signing_string
-    
-    SDK->>Algo: verify(public_key, signing_string, signature)
-    Algo->>Traits: use Verifier trait
-    Traits->>Algo: return verification result
-    Algo->>SDK: return verification result
-    
-    SDK->>Dev: return verification status
-
----
-
-%% ============================================================================
-%% 7. Security Architecture
+%% 6. Deployment and Infrastructure Architecture
 %% ============================================================================
 
 graph TB
-    subgraph "🔒 Security Architecture"
+    subgraph "Deployment & Infrastructure Architecture"
         direction TB
         
-        %% Security Layers
-        subgraph "🛡️ Defense in Depth"
-            TYPE_SAFETY[Type Safety Layer<br/>Compile-time guarantees]
-            MEMORY_SAFETY[Memory Safety Layer<br/>Rust ownership + zeroize]
-            CRYPTO_SAFETY[Cryptographic Safety<br/>Constant-time operations]
-            PROTOCOL_SAFETY[Protocol Safety<br/>ONDC compliance validation]
+        %% Container Layer
+        subgraph "🐳 Container Layer"
+            DOCKER_IMAGE[Docker Image<br/>Multi-stage build]
+            BASE_IMAGE[Base Image<br/>Distroless/Alpine]
+            HEALTH_PROBE[Health Probes<br/>Liveness/Readiness]
         end
         
-        %% Security Components
-        subgraph "🔐 Security Components"
-            CONSTANT_TIME[Constant-Time Operations<br/>subtle crate]
-            MEMORY_ZERO[Memory Zeroization<br/>zeroize crate]
-            SECURE_RANDOM[Secure RNG<br/>OsRng]
-            TIMING_PROTECTION[Timing Attack Protection<br/>Verification guards]
+        %% Orchestration Layer
+        subgraph "☸️ Orchestration Layer (Kubernetes)"
+            DEPLOYMENT[Deployment<br/>Rolling updates]
+            SERVICE[Service<br/>Load balancing]
+            INGRESS[Ingress<br/>TLS termination]
+            CONFIG_MAP[ConfigMap<br/>Configuration]
+            SECRET[Secret<br/>Key storage]
+            HPA[HPA<br/>Auto-scaling]
         end
         
-        %% Threat Mitigation
-        subgraph "⚠️ Threat Mitigation"
-            TIMING_ATTACKS[Timing Attacks<br/>Constant-time comparisons]
-            MEMORY_LEAKS[Memory Disclosure<br/>Automatic zeroization]
-            MALLEABILITY[Signature Malleability<br/>Strict verification]
-            REPLAY_ATTACKS[Replay Attacks<br/>Timestamp validation]
+        %% Infrastructure Layer
+        subgraph "🏗️ Infrastructure Layer"
+            LOAD_BALANCER[Load Balancer<br/>High availability]
+            CERT_MANAGER[Cert Manager<br/>SSL automation]
+            DNS_RESOLVER[DNS<br/>Service discovery]
+            STORAGE_CLASS[Storage Class<br/>Persistent volumes]
         end
         
-        %% Security Flow
-        TYPE_SAFETY --> MEMORY_SAFETY
-        MEMORY_SAFETY --> CRYPTO_SAFETY
-        CRYPTO_SAFETY --> PROTOCOL_SAFETY
+        %% Monitoring Stack
+        subgraph "📊 Monitoring Stack"
+            PROMETHEUS[Prometheus<br/>Metrics collection]
+            GRAFANA[Grafana<br/>Visualization]
+            JAEGER[Jaeger<br/>Distributed tracing]
+            LOKI[Loki<br/>Log aggregation]
+            ALERT_MGR[AlertManager<br/>Incident management]
+        end
         
-        CONSTANT_TIME --> TIMING_ATTACKS
-        MEMORY_ZERO --> MEMORY_LEAKS
-        SECURE_RANDOM --> MALLEABILITY
-        TIMING_PROTECTION --> REPLAY_ATTACKS
+        %% External Services
+        subgraph "🌐 External Services"
+            ONDC_STAGING[ONDC Staging<br/>staging.registry.ondc.org]
+            ONDC_PREPROD[ONDC Pre-Prod<br/>preprod.registry.ondc.org]
+            ONDC_PROD[ONDC Production<br/>prod.registry.ondc.org]
+            DNS_PROVIDER_EXT[DNS Provider<br/>Domain management]
+            SSL_PROVIDER_EXT[SSL Provider<br/>Certificate authority]
+        end
         
-        TYPE_SAFETY -.-> CONSTANT_TIME
-        MEMORY_SAFETY -.-> MEMORY_ZERO
-        CRYPTO_SAFETY -.-> SECURE_RANDOM
-        PROTOCOL_SAFETY -.-> TIMING_PROTECTION
+        %% Connections
+        DOCKER_IMAGE --> DEPLOYMENT
+        BASE_IMAGE --> DOCKER_IMAGE
+        HEALTH_PROBE --> DOCKER_IMAGE
+        
+        DEPLOYMENT --> SERVICE
+        SERVICE --> INGRESS
+        CONFIG_MAP --> DEPLOYMENT
+        SECRET --> DEPLOYMENT
+        HPA --> DEPLOYMENT
+        
+        INGRESS --> LOAD_BALANCER
+        INGRESS --> CERT_MANAGER
+        SERVICE --> DNS_RESOLVER
+        SECRET --> STORAGE_CLASS
+        
+        DEPLOYMENT --> PROMETHEUS
+        PROMETHEUS --> GRAFANA
+        DEPLOYMENT --> JAEGER
+        DEPLOYMENT --> LOKI
+        PROMETHEUS --> ALERT_MGR
+        
+        LOAD_BALANCER --> ONDC_STAGING
+        LOAD_BALANCER --> ONDC_PREPROD
+        LOAD_BALANCER --> ONDC_PROD
+        CERT_MANAGER --> SSL_PROVIDER_EXT
+        DNS_RESOLVER --> DNS_PROVIDER_EXT
         
         %% Styling
-        classDef securityLayer fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
-        classDef securityComp fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-        classDef threatMit fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+        classDef containerLayer fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+        classDef orchestrationLayer fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+        classDef infrastructureLayer fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+        classDef monitoringLayer fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+        classDef externalLayer fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
         
-        class TYPE_SAFETY,MEMORY_SAFETY,CRYPTO_SAFETY,PROTOCOL_SAFETY securityLayer
-        class CONSTANT_TIME,MEMORY_ZERO,SECURE_RANDOM,TIMING_PROTECTION securityComp
-        class TIMING_ATTACKS,MEMORY_LEAKS,MALLEABILITY,REPLAY_ATTACKS threatMit
+        class DOCKER_IMAGE,BASE_IMAGE,HEALTH_PROBE containerLayer
+        class DEPLOYMENT,SERVICE,INGRESS,CONFIG_MAP,SECRET,HPA orchestrationLayer
+        class LOAD_BALANCER,CERT_MANAGER,DNS_RESOLVER,STORAGE_CLASS infrastructureLayer
+        class PROMETHEUS,GRAFANA,JAEGER,LOKI,ALERT_MGR monitoringLayer
+        class ONDC_STAGING,ONDC_PREPROD,ONDC_PROD,DNS_PROVIDER_EXT,SSL_PROVIDER_EXT externalLayer
     end

@@ -1,0 +1,32 @@
+# ONDC BAP Server - Production Configuration
+
+[server]
+host = "0.0.0.0"
+port = 443
+request_timeout_secs = 30
+max_connections = 10000
+
+# TLS configuration (required for production)
+[server.tls]
+cert_path = "/etc/ssl/certs/ondc-bap.crt"
+key_path = "/etc/ssl/private/ondc-bap.key"
+
+[ondc]
+environment = "production"
+registry_base_url = "https://prod.registry.ondc.org"
+subscriber_id = "your-production-domain.com"
+callback_url = "/"
+request_timeout_secs = 30
+max_retries = 5
+
+[keys]
+# These must be actual production keys
+signing_private_key = "your-production-signing-private-key-base64"
+encryption_private_key = "your-production-encryption-private-key-base64"
+unique_key_id = "prod_key_1"
+
+[security]
+enable_rate_limiting = true
+max_requests_per_minute = 1000
+enable_cors = true
+allowed_origins = ["https://your-domain.com"] 

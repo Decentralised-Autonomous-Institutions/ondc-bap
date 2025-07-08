@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "ondc-crypto",
+    "ondc-bap",
     "ondc-crypto-traits",
     "ondc-crypto-algorithms", 
     "ondc-crypto-formats",
@@ -33,15 +33,51 @@ thiserror = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 
 # HTTP and networking
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "native-tls"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+toml = "0.8"
 
 # Testing and development
 proptest = "1.3"
 criterion = "0.5"
+
+# Web framework dependencies
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+hyper = "1.0"
+
+# Configuration
+config = "0.14"
+figment = { version = "0.10", features = ["toml", "env"] }
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-opentelemetry = "0.21"
+
+# Error handling
+anyhow = "1.0"
+
+# Security
+rustls = "0.22"
+rustls-pemfile = "2.0"
+
+# UUID generation
+uuid = "1.0"
+
+# URL parsing
+url = "2.4"
+
+# Regex for validation
+regex = "1.0"
+
+# AES encryption
+aes = "0.8"
+block-modes = "0.9"
 
 # Documentation
 mdbook = "0.4"
@@ -53,7 +89,7 @@ clippy = "0.1"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["ONDC Crypto Team"]
+authors = ["Airesh Bhat(nelliairesh@gmail.com)"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ondc/ondc-crypto-rs"
 description = "ONDC cryptographic utilities for Rust"
