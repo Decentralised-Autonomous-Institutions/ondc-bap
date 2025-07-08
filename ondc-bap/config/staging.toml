@@ -21,8 +21,8 @@ max_retries = 3
 
 [keys]
 # These should be replaced with actual keys in production
-signing_private_key = "your-signing-private-key-base64"
-encryption_private_key = "your-encryption-private-key-base64"
+signing_private_key = "iblY/8ruRp43aGEjuCtJrs5QyAhaHroQIaUgWKNScco="
+encryption_private_key = "CeBWrM0FhC47Zek6QKCMopzNFC5U3JizkOuDYVqUXno="
 unique_key_id = "key_1"
 
 [security]
