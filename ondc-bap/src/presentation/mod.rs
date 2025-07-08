@@ -1,10 +1,14 @@
 //! Presentation layer for ONDC BAP Server
 //! 
-//! This module handles HTTP request/response processing using Axum framework.
+//! This module contains the HTTP layer implementation using Axum framework,
+//! including routers, handlers, middleware, and application state management.
 
 pub mod server;
-pub mod middleware;
-pub mod handlers;
 pub mod routes;
+pub mod handlers;
+pub mod middleware;
 
-pub use server::BAPServer; 
+// Re-export main types
+pub use server::BAPServer;
+pub use routes::create_router;
+pub use handlers::AppState; 

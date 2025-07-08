@@ -1,7 +1,88 @@
 //! Route definitions for ONDC BAP Server
 
-// TODO: Implement route definitions
-// - Site verification route
-// - On-subscribe route
-// - Admin routes
-// - Health check route 
+use axum::{
+    Router,
+    routing::{get, post},
+    middleware,
+};
+use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+
+use crate::config::BAPConfig;
+use crate::services::KeyManagementService;
+use super::handlers::{AppState, health_check, admin_register, serve_site_verification, handle_on_subscribe};
+use super::middleware::{
+    logging_middleware,
+    cors_middleware,
+    error_handling_middleware,
+    rate_limiting_middleware,
+    security_headers_middleware,
+};
+
+/// Create the main application router
+pub fn create_router(
+    config: Arc<BAPConfig>,
+    key_manager: Arc<KeyManagementService>,
+) -> Router {
+    // Create application state
+    let app_state = AppState::new(config, key_manager);
+    
+    // Create router with middleware stack
+    Router::new()
+        // Health and monitoring routes
+        .route("/health", get(health_check))
+        .route("/ready", get(super::handlers::health::readiness_check))
+        .route("/live", get(super::handlers::health::liveness_check))
+        .route("/metrics", get(metrics_handler))
+        
+        // ONDC protocol routes
+        .route("/ondc-site-verification.html", get(serve_site_verification))
+        .route("/on_subscribe", post(handle_on_subscribe))
+        .route("/participant/info", get(super::handlers::ondc::get_participant_info))
+        
+        // Administrative routes
+        .nest("/admin", admin_routes())
+        
+        // Apply middleware stack
+        .layer(middleware::from_fn(logging_middleware))
+        .layer(middleware::from_fn(security_headers_middleware))
+        .layer(middleware::from_fn(error_handling_middleware))
+        .layer(middleware::from_fn(rate_limiting_middleware))
+        .layer(cors_middleware())
+        .layer(TraceLayer::new_for_http())
+        
+        // Add application state
+        .with_state(app_state)
+}
+
+/// Administrative routes
+fn admin_routes() -> Router<AppState> {
+    Router::new()
+        .route("/register", post(admin_register))
+        .route("/config", post(super::handlers::admin::update_config))
+        .route("/keys/rotate", post(super::handlers::admin::rotate_keys))
+}
+
+/// Metrics endpoint (Prometheus format)
+async fn metrics_handler() -> String {
+    // TODO: Implement actual metrics collection
+    // For now, return basic Prometheus metrics
+    
+    r#"# HELP ondc_bap_requests_total Total number of requests
+# TYPE ondc_bap_requests_total counter
+ondc_bap_requests_total{endpoint="/health"} 0
+ondc_bap_requests_total{endpoint="/ondc-site-verification.html"} 0
+ondc_bap_requests_total{endpoint="/on_subscribe"} 0
+
+# HELP ondc_bap_request_duration_seconds Request duration in seconds
+# TYPE ondc_bap_request_duration_seconds histogram
+ondc_bap_request_duration_seconds_bucket{le="0.1"} 0
+ondc_bap_request_duration_seconds_bucket{le="0.5"} 0
+ondc_bap_request_duration_seconds_bucket{le="1.0"} 0
+ondc_bap_request_duration_seconds_bucket{le="+Inf"} 0
+
+# HELP ondc_bap_up Server uptime status
+# TYPE ondc_bap_up gauge
+ondc_bap_up 1
+"#.to_string()
+} 
