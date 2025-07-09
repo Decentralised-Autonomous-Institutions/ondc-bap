@@ -1,9 +1,9 @@
 //! ONDC BAP Server - Main Binary
-//! 
+//!
 //! This is the main entry point for the ONDC BAP server application.
 
 use ondc_bap::{BAPServer, Result};
-use tracing::{info, error, Level};
+use tracing::{error, info, Level};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -30,4 +30,4 @@ async fn main() -> Result<()> {
             Err(e)
         }
     }
-} 
+}

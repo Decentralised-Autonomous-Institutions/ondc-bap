@@ -31,11 +31,13 @@
 //! verifier.verify(public_key, message, &signature).unwrap();
 //! ```
 
-use ed25519_dalek::{SigningKey, VerifyingKey, Signature, SECRET_KEY_LENGTH, PUBLIC_KEY_LENGTH, KEYPAIR_LENGTH};
+use ed25519_dalek::{
+    Signature, SigningKey, VerifyingKey, KEYPAIR_LENGTH, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH,
+};
 use ondc_crypto_traits::{
-    ONDCCryptoError, Signer, Verifier, KeyPair, PublicKey,
-    Ed25519Signature, Ed25519PublicKey, Ed25519PrivateKey,
-    validate_ed25519_signature_length, validate_ed25519_public_key_length, validate_ed25519_private_key_length,
+    validate_ed25519_private_key_length, validate_ed25519_public_key_length,
+    validate_ed25519_signature_length, Ed25519PrivateKey, Ed25519PublicKey, Ed25519Signature,
+    KeyPair, ONDCCryptoError, PublicKey, Signer, Verifier,
 };
 
 /// Ed25519 signer implementation.
@@ -102,17 +104,17 @@ impl Ed25519Signer {
     pub fn new(private_key: &[u8]) -> Result<Self, ONDCCryptoError> {
         // Validate private key length
         validate_ed25519_private_key_length(private_key)?;
-        
+
         // Convert to fixed-size array
         let mut key_bytes = [0u8; SECRET_KEY_LENGTH];
         key_bytes.copy_from_slice(private_key);
-        
+
         // Create signing key from bytes
         let signing_key = SigningKey::from_bytes(&key_bytes);
-        
+
         Ok(Self { signing_key })
     }
-    
+
     /// Create a new Ed25519 signer from a keypair.
     ///
     /// # Arguments
@@ -138,16 +140,19 @@ impl Ed25519Signer {
     /// let keypair = [0u8; 64]; // Use a real keypair in practice
     /// let signer = Ed25519Signer::from_keypair_bytes(&keypair).unwrap();
     /// ```
-    pub fn from_keypair_bytes(keypair_bytes: &[u8; KEYPAIR_LENGTH]) -> Result<Self, ONDCCryptoError> {
-        let signing_key = SigningKey::from_keypair_bytes(keypair_bytes)
-            .map_err(|_| ONDCCryptoError::InvalidKeyLength { 
-                expected: KEYPAIR_LENGTH, 
-                got: keypair_bytes.len() 
-            })?;
-        
+    pub fn from_keypair_bytes(
+        keypair_bytes: &[u8; KEYPAIR_LENGTH],
+    ) -> Result<Self, ONDCCryptoError> {
+        let signing_key = SigningKey::from_keypair_bytes(keypair_bytes).map_err(|_| {
+            ONDCCryptoError::InvalidKeyLength {
+                expected: KEYPAIR_LENGTH,
+                got: keypair_bytes.len(),
+            }
+        })?;
+
         Ok(Self { signing_key })
     }
-    
+
     /// Generate a new Ed25519 signer with a random private key.
     ///
     /// # Returns
@@ -167,12 +172,12 @@ impl Ed25519Signer {
     /// ```
     pub fn generate() -> Result<Self, ONDCCryptoError> {
         use rand::rngs::OsRng;
-        
+
         let mut csprng = OsRng;
         let signing_key = SigningKey::generate(&mut csprng);
         Ok(Self { signing_key })
     }
-    
+
     /// Get the public key associated with this signer.
     ///
     /// # Returns
@@ -191,7 +196,7 @@ impl Ed25519Signer {
     pub fn public_key(&self) -> [u8; PUBLIC_KEY_LENGTH] {
         *self.signing_key.verifying_key().as_bytes()
     }
-    
+
     /// Get the private key bytes.
     ///
     /// # Returns
@@ -216,7 +221,7 @@ impl Ed25519Signer {
     pub fn private_key(&self) -> &[u8; SECRET_KEY_LENGTH] {
         self.signing_key.as_bytes()
     }
-    
+
     /// Convert this signer to a keypair.
     ///
     /// # Returns
@@ -235,7 +240,7 @@ impl Ed25519Signer {
     pub fn to_keypair_bytes(&self) -> [u8; KEYPAIR_LENGTH] {
         self.signing_key.to_keypair_bytes()
     }
-    
+
     /// Sign a message with strict verification compatibility.
     ///
     /// This method creates a signature that is compatible with strict verification,
@@ -265,7 +270,7 @@ impl Ed25519Signer {
     /// ```
     pub fn sign_strict(&self, message: &[u8]) -> Result<Ed25519Signature, ONDCCryptoError> {
         use ed25519_dalek::Signer;
-        
+
         let signature = self.signing_key.sign(message);
         Ok(signature.to_bytes())
     }
@@ -364,7 +369,7 @@ impl Ed25519Verifier {
     pub fn new() -> Self {
         Self
     }
-    
+
     /// Verify a signature with strict verification.
     ///
     /// This method performs strict signature verification that prevents
@@ -416,30 +421,32 @@ impl Ed25519Verifier {
         // Validate input lengths
         validate_ed25519_public_key_length(public_key)?;
         validate_ed25519_signature_length(signature)?;
-        
+
         // Convert to fixed-size arrays
         let mut key_bytes = [0u8; PUBLIC_KEY_LENGTH];
         let mut sig_bytes = [0u8; SECRET_KEY_LENGTH * 2]; // Signature is 64 bytes
-        
+
         key_bytes.copy_from_slice(public_key);
         sig_bytes.copy_from_slice(signature);
-        
+
         // Create verifying key
-        let verifying_key = VerifyingKey::from_bytes(&key_bytes)
-            .map_err(|_| ONDCCryptoError::InvalidKeyLength { 
-                expected: PUBLIC_KEY_LENGTH, 
-                got: public_key.len() 
-            })?;
-        
+        let verifying_key = VerifyingKey::from_bytes(&key_bytes).map_err(|_| {
+            ONDCCryptoError::InvalidKeyLength {
+                expected: PUBLIC_KEY_LENGTH,
+                got: public_key.len(),
+            }
+        })?;
+
         // Create signature
         let signature = Signature::from_bytes(&sig_bytes);
-        
+
         // Perform strict verification
         use ed25519_dalek::Verifier;
-        verifying_key.verify_strict(message, &signature)
+        verifying_key
+            .verify_strict(message, &signature)
             .map_err(|_| ONDCCryptoError::VerificationFailed)
     }
-    
+
     /// Verify a signature with standard verification.
     ///
     /// This method performs standard signature verification. For most use cases,
@@ -485,30 +492,32 @@ impl Ed25519Verifier {
         // Validate input lengths
         validate_ed25519_public_key_length(public_key)?;
         validate_ed25519_signature_length(signature)?;
-        
+
         // Convert to fixed-size arrays
         let mut key_bytes = [0u8; PUBLIC_KEY_LENGTH];
         let mut sig_bytes = [0u8; SECRET_KEY_LENGTH * 2]; // Signature is 64 bytes
-        
+
         key_bytes.copy_from_slice(public_key);
         sig_bytes.copy_from_slice(signature);
-        
+
         // Create verifying key
-        let verifying_key = VerifyingKey::from_bytes(&key_bytes)
-            .map_err(|_| ONDCCryptoError::InvalidKeyLength { 
-                expected: PUBLIC_KEY_LENGTH, 
-                got: public_key.len() 
-            })?;
-        
+        let verifying_key = VerifyingKey::from_bytes(&key_bytes).map_err(|_| {
+            ONDCCryptoError::InvalidKeyLength {
+                expected: PUBLIC_KEY_LENGTH,
+                got: public_key.len(),
+            }
+        })?;
+
         // Create signature
         let signature = Signature::from_bytes(&sig_bytes);
-        
+
         // Perform standard verification
         use ed25519_dalek::Verifier;
-        verifying_key.verify(message, &signature)
+        verifying_key
+            .verify(message, &signature)
             .map_err(|_| ONDCCryptoError::VerificationFailed)
     }
-    
+
     /// Check if a public key is weak (has low order).
     ///
     /// Weak public keys can be used to generate signatures that are valid
@@ -538,18 +547,19 @@ impl Ed25519Verifier {
     pub fn is_weak_key(&self, public_key: &[u8]) -> Result<bool, ONDCCryptoError> {
         // Validate public key length
         validate_ed25519_public_key_length(public_key)?;
-        
+
         // Convert to fixed-size array
         let mut key_bytes = [0u8; PUBLIC_KEY_LENGTH];
         key_bytes.copy_from_slice(public_key);
-        
+
         // Create verifying key
-        let verifying_key = VerifyingKey::from_bytes(&key_bytes)
-            .map_err(|_| ONDCCryptoError::InvalidKeyLength { 
-                expected: PUBLIC_KEY_LENGTH, 
-                got: public_key.len() 
-            })?;
-        
+        let verifying_key = VerifyingKey::from_bytes(&key_bytes).map_err(|_| {
+            ONDCCryptoError::InvalidKeyLength {
+                expected: PUBLIC_KEY_LENGTH,
+                got: public_key.len(),
+            }
+        })?;
+
         Ok(verifying_key.is_weak())
     }
 }
@@ -611,7 +621,7 @@ mod tests {
     fn test_ed25519_signer_from_private_key() {
         let original_signer = Ed25519Signer::generate().unwrap();
         let private_key = original_signer.private_key();
-        
+
         let new_signer = Ed25519Signer::new(private_key).unwrap();
         assert_eq!(new_signer.public_key(), original_signer.public_key());
     }
@@ -620,7 +630,7 @@ mod tests {
     fn test_ed25519_signer_from_keypair() {
         let original_signer = Ed25519Signer::generate().unwrap();
         let keypair = original_signer.to_keypair_bytes();
-        
+
         let new_signer = Ed25519Signer::from_keypair_bytes(&keypair).unwrap();
         assert_eq!(new_signer.public_key(), original_signer.public_key());
     }
@@ -629,7 +639,7 @@ mod tests {
     fn test_ed25519_signing_roundtrip() {
         let (signer, verifier) = generate_test_keypair();
         let message = b"Hello, ONDC!";
-        
+
         let signature = signer.sign(message).unwrap();
         let public_key = signer.public_key();
         verifier.verify(&public_key, message, &signature).unwrap();
@@ -639,21 +649,23 @@ mod tests {
     fn test_ed25519_strict_verification() {
         let (signer, verifier) = generate_test_keypair();
         let message = b"Hello, ONDC!";
-        
+
         let signature = signer.sign_strict(message).unwrap();
         let public_key = signer.public_key();
-        verifier.verify_strict(&public_key, message, &signature).unwrap();
+        verifier
+            .verify_strict(&public_key, message, &signature)
+            .unwrap();
     }
 
     #[test]
     fn test_ed25519_invalid_signature_fails() {
         let (signer, verifier) = generate_test_keypair();
         let message = b"Hello, ONDC!";
-        
+
         let mut signature = signer.sign(message).unwrap();
         signature[0] ^= 1; // Corrupt signature
         let public_key = signer.public_key();
-        
+
         assert!(verifier.verify(&public_key, message, &signature).is_err());
     }
 
@@ -662,10 +674,10 @@ mod tests {
         let (signer, verifier) = generate_test_keypair();
         let message = b"Hello, ONDC!";
         let signature = signer.sign(message).unwrap();
-        
+
         let mut invalid_key = signer.public_key();
         invalid_key[0] ^= 1; // Corrupt public key
-        
+
         assert!(verifier.verify(&invalid_key, message, &signature).is_err());
     }
 
@@ -681,7 +693,7 @@ mod tests {
         let invalid_key = [0u8; 16]; // Wrong length
         let signature = [0u8; 64];
         let message = b"test";
-        
+
         // This should fail at compile time due to type mismatch
         // assert!(verifier.verify(&invalid_key, message, &signature).is_err());
     }
@@ -699,11 +711,11 @@ mod tests {
     #[test]
     fn test_ed25519_keypair_trait() {
         let signer = Ed25519Signer::generate().unwrap();
-        
+
         // Test KeyPair trait methods
         let public_key = signer.public_key();
         let private_key = signer.private_key();
-        
+
         assert_eq!(public_key.len(), PUBLIC_KEY_LENGTH);
         assert_eq!(private_key.len(), SECRET_KEY_LENGTH);
     }
@@ -712,11 +724,11 @@ mod tests {
     fn test_ed25519_signer_clone() {
         let signer = Ed25519Signer::generate().unwrap();
         let cloned_signer = signer.clone();
-        
+
         let message = b"test message";
         let signature1 = signer.sign(message).unwrap();
         let signature2 = cloned_signer.sign(message).unwrap();
-        
+
         assert_eq!(signature1, signature2);
     }
 
@@ -724,7 +736,7 @@ mod tests {
     fn test_ed25519_verifier_clone() {
         let verifier1 = Ed25519Verifier::new();
         let verifier2 = verifier1.clone();
-        
+
         // Both should work identically
         assert_eq!(verifier1.to_bytes(), verifier2.to_bytes());
     }
@@ -733,10 +745,10 @@ mod tests {
     fn test_ed25519_deterministic_signing() {
         let signer = Ed25519Signer::generate().unwrap();
         let message = b"deterministic test message";
-        
+
         let signature1 = signer.sign(message).unwrap();
         let signature2 = signer.sign(message).unwrap();
-        
+
         assert_eq!(signature1, signature2);
     }
 
@@ -745,10 +757,10 @@ mod tests {
         let signer = Ed25519Signer::generate().unwrap();
         let message1 = b"message 1";
         let message2 = b"message 2";
-        
+
         let signature1 = signer.sign(message1).unwrap();
         let signature2 = signer.sign(message2).unwrap();
-        
+
         assert_ne!(signature1, signature2);
     }
-} 
+}

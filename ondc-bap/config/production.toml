@@ -13,7 +13,7 @@ key_path = "/etc/ssl/private/ondc-bap.key"
 
 [ondc]
 environment = "production"
-registry_base_url = "https://prod.registry.ondc.org"
+registry_base_url = "https://network.lootai.co"
 subscriber_id = "your-production-domain.com"
 callback_url = "/"
 request_timeout_secs = 30

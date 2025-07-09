@@ -1,7 +1,7 @@
 # ONDC Crypto SDK Development Makefile
 # Provides convenient commands for development workflow
 
-.PHONY: help build test check fmt clippy clean doc install-hooks
+.PHONY: help build test check fmt clippy clean doc install-hooks run-staging run-production
 
 # Default target
 help:
@@ -30,6 +30,10 @@ help:
 	@echo "Setup Commands:"
 	@echo "  install-hooks  - Install pre-commit hooks"
 	@echo "  clean          - Clean build artifacts"
+	@echo ""
+	@echo "Run Commands:"
+	@echo "  run-staging    - Run BAP server with staging config"
+	@echo "  run-production - Run BAP server with production config"
 	@echo ""
 
 # Build commands
@@ -108,3 +112,10 @@ release-prep: clean build test-release doc audit
 # Quick development cycle
 dev: fmt clippy test
 	@echo "Development cycle completed!" 
+
+# Run commands with environment configuration
+run-staging:
+	cd ondc-bap && ONDC_ENV=staging cargo run
+
+run-production:
+	cd ondc-bap && ONDC_ENV=production cargo run 

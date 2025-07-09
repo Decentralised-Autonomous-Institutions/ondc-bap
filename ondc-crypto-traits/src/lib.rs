@@ -9,12 +9,12 @@ pub mod traits;
 pub mod types;
 
 pub use error::ONDCCryptoError;
-pub use traits::{Hasher, Signer, Verifier, KeyPair, PublicKey, SigningString};
+pub use traits::{Hasher, KeyPair, PublicKey, Signer, SigningString, Verifier};
 pub use types::*;
 
 /// Re-export commonly used types
 pub mod prelude {
     pub use super::error::ONDCCryptoError;
-    pub use super::traits::{Hasher, Signer, Verifier, KeyPair, PublicKey, SigningString};
+    pub use super::traits::{Hasher, KeyPair, PublicKey, Signer, SigningString, Verifier};
     pub use super::types::*;
-} 
+}

@@ -13,8 +13,8 @@ max_connections = 1000
 
 [ondc]
 environment = "staging"
-registry_base_url = "https://staging.registry.ondc.org"
-subscriber_id = "your-domain.com"
+registry_base_url = "https://beta-network.lootai.co"
+subscriber_id = "beta-network.lootai.co"
 callback_url = "/"
 request_timeout_secs = 30
 max_retries = 3

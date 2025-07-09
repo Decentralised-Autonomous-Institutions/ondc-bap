@@ -15,8 +15,11 @@ pub fn load_config_for_environment(env: &str) -> Result<BAPConfig, ConfigError> 
 
 /// Create test configuration for development
 pub fn create_test_config() -> BAPConfig {
-    use crate::config::{app_config::ServerConfig, app_config::KeyConfig, app_config::SecurityConfig, ondc_config::ONDCConfig, ondc_config::Environment};
-    
+    use crate::config::{
+        app_config::KeyConfig, app_config::SecurityConfig, app_config::ServerConfig,
+        ondc_config::Environment, ondc_config::ONDCConfig,
+    };
+
     BAPConfig {
         server: ServerConfig {
             host: "0.0.0.0".to_string(),
@@ -52,7 +55,7 @@ fn generate_test_signing_key() -> String {
     // Generate a test Ed25519 key pair
     use ondc_crypto_algorithms::Ed25519Signer;
     use ondc_crypto_formats::encode_signature;
-    
+
     let signer = Ed25519Signer::generate().expect("Failed to generate test signer");
     let private_key = signer.private_key();
     encode_signature(private_key)
@@ -63,7 +66,7 @@ fn generate_test_encryption_key() -> String {
     // Generate a test X25519 key pair
     use ondc_crypto_algorithms::X25519KeyExchange;
     use ondc_crypto_formats::encode_signature;
-    
+
     let key_exchange = X25519KeyExchange::generate().expect("Failed to generate test key exchange");
     let private_key = key_exchange.private_key();
     encode_signature(private_key)
@@ -84,13 +87,13 @@ mod tests {
     fn test_generate_test_keys() {
         let signing_key = generate_test_signing_key();
         let encryption_key = generate_test_encryption_key();
-        
+
         assert!(!signing_key.is_empty());
         assert!(!encryption_key.is_empty());
-        
+
         // Verify they can be decoded
         use ondc_crypto_formats::decode_signature;
         assert!(decode_signature(&signing_key).is_ok());
         assert!(decode_signature(&encryption_key).is_ok());
     }
-} 
+}

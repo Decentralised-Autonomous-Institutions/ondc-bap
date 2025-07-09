@@ -1,11 +1,11 @@
 //! Administrative handlers for ONDC BAP Server
 
 use axum::{
-    extract::{State, Json},
-    response::Json as JsonResponse,
+    extract::{Json, State},
     http::StatusCode,
+    response::Json as JsonResponse,
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use super::AppState;
@@ -32,10 +32,10 @@ pub async fn admin_register(
     Json(_request): Json<AdminRegistrationRequest>,
 ) -> Result<JsonResponse<AdminRegistrationResponse>, StatusCode> {
     info!("Admin registration request received");
-    
+
     // TODO: Implement actual registration logic
     // For now, return a placeholder response
-    
+
     Ok(JsonResponse(AdminRegistrationResponse {
         status: "initiated".to_string(),
         message: "Registration initiated successfully".to_string(),
@@ -63,9 +63,9 @@ pub async fn update_config(
     Json(_request): Json<ConfigUpdateRequest>,
 ) -> Result<JsonResponse<ConfigUpdateResponse>, StatusCode> {
     info!("Configuration update request received");
-    
+
     // TODO: Implement configuration update logic
-    
+
     Ok(JsonResponse(ConfigUpdateResponse {
         success: true,
         message: "Configuration updated successfully".to_string(),
@@ -92,12 +92,12 @@ pub async fn rotate_keys(
     Json(_request): Json<KeyRotationRequest>,
 ) -> Result<JsonResponse<KeyRotationResponse>, StatusCode> {
     info!("Key rotation request received");
-    
+
     // TODO: Implement key rotation logic
-    
+
     Ok(JsonResponse(KeyRotationResponse {
         success: true,
         message: "Keys rotated successfully".to_string(),
         new_key_id: Some(uuid::Uuid::new_v4().to_string()),
     }))
-} 
+}

@@ -1,22 +1,15 @@
 //! Logging middleware for ONDC BAP Server
 
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, middleware::Next, response::Response};
 use std::time::Instant;
-use tracing::{info, error, warn, debug};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 /// Logging middleware for request/response logging
-pub async fn logging_middleware(
-    request: Request,
-    next: Next,
-) -> Response {
+pub async fn logging_middleware(request: Request, next: Next) -> Response {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
-    
+
     // Log request details
     info!(
         request_id = %request_id,
@@ -24,17 +17,17 @@ pub async fn logging_middleware(
         uri = %request.uri(),
         "Incoming request"
     );
-    
+
     // Process request
     let response = next.run(request).await;
-    
+
     // Calculate duration
     let duration = start.elapsed();
-    
+
     // Log response details
     let status = response.status();
     let status_code = status.as_u16();
-    
+
     match status_code {
         200..=299 => {
             info!(
@@ -77,6 +70,6 @@ pub async fn logging_middleware(
             );
         }
     }
-    
+
     response
-} 
+}

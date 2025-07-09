@@ -27,10 +27,7 @@
 //! let der_key = key_formats::x25519_public_key_to_der(&public_key).unwrap();
 //! ```
 
-use der::{
-    asn1::OctetString,
-    Decode, Encode,
-};
+use der::{asn1::OctetString, Decode, Encode};
 use ondc_crypto_traits::ONDCCryptoError;
 use zeroize::Zeroizing;
 
@@ -120,9 +117,11 @@ pub fn ed25519_private_key_to_base64(raw_key: &[u8]) -> Result<String, ONDCCrypt
 /// let raw_key = key_formats::ed25519_private_key_from_base64(base64_key).unwrap();
 /// assert_eq!(raw_key.len(), 32);
 /// ```
-pub fn ed25519_private_key_from_base64(base64_key: &str) -> Result<Zeroizing<Vec<u8>>, ONDCCryptoError> {
+pub fn ed25519_private_key_from_base64(
+    base64_key: &str,
+) -> Result<Zeroizing<Vec<u8>>, ONDCCryptoError> {
     let decoded = decode_signature(base64_key)?;
-    
+
     if decoded.len() != 32 {
         return Err(ONDCCryptoError::InvalidKeyLength {
             expected: 32,
@@ -203,7 +202,7 @@ pub fn ed25519_public_key_to_base64(raw_key: &[u8]) -> Result<String, ONDCCrypto
 /// ```
 pub fn ed25519_public_key_from_base64(base64_key: &str) -> Result<[u8; 32], ONDCCryptoError> {
     let decoded = decode_signature(base64_key)?;
-    
+
     if decoded.len() != 32 {
         return Err(ONDCCryptoError::InvalidKeyLength {
             expected: 32,
@@ -302,7 +301,7 @@ pub fn ed25519_private_key_from_der(der_key: &[u8]) -> Result<Zeroizing<Vec<u8>>
         .map_err(|e| ONDCCryptoError::EncodingError(format!("DER decoding failed: {}", e)))?;
 
     let key_bytes = octet_string.as_bytes();
-    
+
     if key_bytes.len() != 32 {
         return Err(ONDCCryptoError::InvalidKeyLength {
             expected: 32,
@@ -397,9 +396,11 @@ pub fn x25519_private_key_to_base64(raw_key: &[u8]) -> Result<String, ONDCCrypto
 /// let raw_key = key_formats::x25519_private_key_from_base64(base64_key).unwrap();
 /// assert_eq!(raw_key.len(), 32);
 /// ```
-pub fn x25519_private_key_from_base64(base64_key: &str) -> Result<Zeroizing<Vec<u8>>, ONDCCryptoError> {
+pub fn x25519_private_key_from_base64(
+    base64_key: &str,
+) -> Result<Zeroizing<Vec<u8>>, ONDCCryptoError> {
     let decoded = decode_signature(base64_key)?;
-    
+
     if decoded.len() != 32 {
         return Err(ONDCCryptoError::InvalidKeyLength {
             expected: 32,
@@ -480,7 +481,7 @@ pub fn x25519_public_key_to_base64(raw_key: &[u8]) -> Result<String, ONDCCryptoE
 /// ```
 pub fn x25519_public_key_from_base64(base64_key: &str) -> Result<[u8; 32], ONDCCryptoError> {
     let decoded = decode_signature(base64_key)?;
-    
+
     if decoded.len() != 32 {
         return Err(ONDCCryptoError::InvalidKeyLength {
             expected: 32,
@@ -574,7 +575,7 @@ pub fn x25519_public_key_from_der(der_key: &[u8]) -> Result<[u8; 32], ONDCCrypto
         .map_err(|e| ONDCCryptoError::EncodingError(format!("DER decoding failed: {}", e)))?;
 
     let key_bytes = octet_string.as_bytes();
-    
+
     if key_bytes.len() != 32 {
         return Err(ONDCCryptoError::InvalidKeyLength {
             expected: 32,
@@ -679,7 +680,7 @@ pub fn x25519_private_key_from_der(der_key: &[u8]) -> Result<Zeroizing<Vec<u8>>,
         .map_err(|e| ONDCCryptoError::EncodingError(format!("DER decoding failed: {}", e)))?;
 
     let key_bytes = octet_string.as_bytes();
-    
+
     if key_bytes.len() != 32 {
         return Err(ONDCCryptoError::InvalidKeyLength {
             expected: 32,
@@ -748,32 +749,28 @@ mod tests {
 
     // Test data for Ed25519 keys
     const TEST_ED25519_PRIVATE_KEY: [u8; 32] = [
-        0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b,
-        0x9c, 0x0d, 0x1e, 0x2f, 0x3a, 0x4b, 0x5c, 0x6d,
-        0x7e, 0x8f, 0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f,
-        0x5a, 0x6b, 0x7c, 0x8d, 0x9e, 0x0f, 0x1a, 0x2b,
+        0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b, 0x9c, 0x0d, 0x1e, 0x2f, 0x3a, 0x4b, 0x5c,
+        0x6d, 0x7e, 0x8f, 0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f, 0x5a, 0x6b, 0x7c, 0x8d, 0x9e, 0x0f,
+        0x1a, 0x2b,
     ];
 
     const TEST_ED25519_PUBLIC_KEY: [u8; 32] = [
-        0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b, 0x9c, 0x0d,
-        0x1e, 0x2f, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f,
-        0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f, 0x5a, 0x6b,
-        0x7c, 0x8d, 0x9e, 0x0f, 0x1a, 0x2b, 0x3c, 0x4d,
+        0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b, 0x9c, 0x0d, 0x1e, 0x2f, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e,
+        0x8f, 0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f, 0x5a, 0x6b, 0x7c, 0x8d, 0x9e, 0x0f, 0x1a, 0x2b,
+        0x3c, 0x4d,
     ];
 
     // Test data for X25519 keys
     const TEST_X25519_PRIVATE_KEY: [u8; 32] = [
-        0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b, 0x9c,
-        0x0d, 0x1e, 0x2f, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e,
-        0x8f, 0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f, 0x5a,
-        0x6b, 0x7c, 0x8d, 0x9e, 0x0f, 0x1a, 0x2b, 0x3c,
+        0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b, 0x9c, 0x0d, 0x1e, 0x2f, 0x3a, 0x4b, 0x5c, 0x6d,
+        0x7e, 0x8f, 0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f, 0x5a, 0x6b, 0x7c, 0x8d, 0x9e, 0x0f, 0x1a,
+        0x2b, 0x3c,
     ];
 
     const TEST_X25519_PUBLIC_KEY: [u8; 32] = [
-        0x4d, 0x5e, 0x6f, 0x7a, 0x8b, 0x9c, 0x0d, 0x1e,
-        0x2f, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f, 0x9a,
-        0x0b, 0x1c, 0x2d, 0x3e, 0x4f, 0x5a, 0x6b, 0x7c,
-        0x8d, 0x9e, 0x0f, 0x1a, 0x2b, 0x3c, 0x4d, 0x5e,
+        0x4d, 0x5e, 0x6f, 0x7a, 0x8b, 0x9c, 0x0d, 0x1e, 0x2f, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f,
+        0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f, 0x5a, 0x6b, 0x7c, 0x8d, 0x9e, 0x0f, 0x1a, 0x2b, 0x3c,
+        0x4d, 0x5e,
     ];
 
     #[test]
@@ -871,10 +868,10 @@ mod tests {
     fn test_zeroization() {
         let base64_key = ed25519_private_key_to_base64(&TEST_ED25519_PRIVATE_KEY).unwrap();
         let decoded_key = ed25519_private_key_from_base64(&base64_key).unwrap();
-        
+
         // Verify the key is in a Zeroizing container
         assert_eq!(decoded_key.as_slice(), &TEST_ED25519_PRIVATE_KEY);
-        
+
         // The key will be automatically zeroized when dropped
         drop(decoded_key);
     }
@@ -883,17 +880,16 @@ mod tests {
     fn test_ondc_compatibility() {
         // Test with data that matches ONDC key patterns
         let test_key = [
-            0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b,
-            0x9c, 0x0d, 0x1e, 0x2f, 0x3a, 0x4b, 0x5c, 0x6d,
-            0x7e, 0x8f, 0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f,
-            0x5a, 0x6b, 0x7c, 0x8d, 0x9e, 0x0f, 0x1a, 0x2b,
+            0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b, 0x9c, 0x0d, 0x1e, 0x2f, 0x3a, 0x4b,
+            0x5c, 0x6d, 0x7e, 0x8f, 0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f, 0x5a, 0x6b, 0x7c, 0x8d,
+            0x9e, 0x0f, 0x1a, 0x2b,
         ];
-        
+
         let base64_key = ed25519_private_key_to_base64(&test_key).unwrap();
         let decoded_key = ed25519_private_key_from_base64(&base64_key).unwrap();
         assert_eq!(decoded_key.as_slice(), &test_key);
-        
+
         // Verify the encoded string is valid for ONDC operations
         assert!(!base64_key.contains('+') || !base64_key.contains('/')); // Should be URL-safe if needed
     }
-} 
+}

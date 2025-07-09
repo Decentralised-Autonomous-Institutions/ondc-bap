@@ -1,14 +1,14 @@
 //! Main server implementation for ONDC BAP
 
-use std::sync::Arc;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::signal;
-use tracing::{info, error};
+use tracing::{error, info};
 
-use crate::{Result, BAPConfig};
+use super::routes::create_router;
 use crate::config::load_config;
 use crate::services::KeyManagementService;
-use super::routes::create_router;
+use crate::{BAPConfig, Result};
 
 /// Main BAP server implementation
 pub struct BAPServer {
@@ -21,53 +21,60 @@ impl BAPServer {
     pub async fn new() -> Result<Self> {
         let config = Arc::new(load_config()?);
         info!("BAP Server configuration loaded successfully");
-        
-        let key_manager = Arc::new(KeyManagementService::new(config.keys.clone()).await
-            .map_err(|e| crate::error::AppError::Internal(e.to_string()))?);
+
+        let key_manager = Arc::new(
+            KeyManagementService::new(config.keys.clone())
+                .await
+                .map_err(|e| crate::error::AppError::Internal(e.to_string()))?,
+        );
         info!("Key management service initialized successfully");
-        
-        Ok(Self { 
+
+        Ok(Self {
             config,
             key_manager,
         })
     }
-    
+
     /// Run the server
     pub async fn run(&self) -> Result<()> {
         let addr = SocketAddr::from((
-            self.config.server.host.parse::<std::net::IpAddr>().unwrap_or_else(|_| [0, 0, 0, 0].into()),
+            self.config
+                .server
+                .host
+                .parse::<std::net::IpAddr>()
+                .unwrap_or_else(|_| [0, 0, 0, 0].into()),
             self.config.server.port,
         ));
-        
+
         info!("Starting BAP Server on {}", addr);
-        
+
         // Create router
         let app = create_router(self.config.clone(), self.key_manager.clone());
-        
+
         // Start server with graceful shutdown
-        let listener = tokio::net::TcpListener::bind(addr).await
+        let listener = tokio::net::TcpListener::bind(addr)
+            .await
             .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
-        
+
         info!("Server listening on {}", addr);
-        
+
         // Handle graceful shutdown
-        let graceful = axum::serve(listener, app)
-            .with_graceful_shutdown(shutdown_signal());
-        
+        let graceful = axum::serve(listener, app).with_graceful_shutdown(shutdown_signal());
+
         if let Err(e) = graceful.await {
             error!("Server error: {}", e);
             return Err(crate::error::AppError::Internal(e.to_string()));
         }
-        
+
         info!("Server shutdown complete");
         Ok(())
     }
-    
+
     /// Get server configuration
     pub fn config(&self) -> &BAPConfig {
         &self.config
     }
-    
+
     /// Get key manager
     pub fn key_manager(&self) -> &KeyManagementService {
         &self.key_manager
@@ -101,7 +108,7 @@ async fn shutdown_signal() {
             info!("Received SIGTERM, shutting down gracefully");
         },
     }
-    
+
     info!("Shutdown signal received, starting graceful shutdown");
 }
 
@@ -114,11 +121,13 @@ mod tests {
         // This test will need proper configuration setup
         // For now, just verify the struct can be created with test config
         let test_config = crate::config::environment::create_test_config();
-        let key_manager = KeyManagementService::new(test_config.keys.clone()).await.unwrap();
-        
+        let key_manager = KeyManagementService::new(test_config.keys.clone())
+            .await
+            .unwrap();
+
         let _server = BAPServer {
             config: Arc::new(test_config),
             key_manager: Arc::new(key_manager),
         };
     }
-} 
+}

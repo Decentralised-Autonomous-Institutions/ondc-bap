@@ -145,10 +145,14 @@ impl SubscriberId {
     /// Create a new subscriber ID
     pub fn new(id: String) -> Result<Self, crate::ONDCCryptoError> {
         if id.is_empty() {
-            return Err(crate::ONDCCryptoError::ConfigError("subscriber_id cannot be empty".into()));
+            return Err(crate::ONDCCryptoError::ConfigError(
+                "subscriber_id cannot be empty".into(),
+            ));
         }
         if id.len() > 255 {
-            return Err(crate::ONDCCryptoError::ConfigError("subscriber_id too long".into()));
+            return Err(crate::ONDCCryptoError::ConfigError(
+                "subscriber_id too long".into(),
+            ));
         }
         Ok(Self(id))
     }
@@ -174,7 +178,9 @@ impl UniqueKeyId {
     /// Create a new unique key ID
     pub fn new(id: String) -> Result<Self, crate::ONDCCryptoError> {
         if id.is_empty() {
-            return Err(crate::ONDCCryptoError::ConfigError("unique_key_id cannot be empty".into()));
+            return Err(crate::ONDCCryptoError::ConfigError(
+                "unique_key_id cannot be empty".into(),
+            ));
         }
         Ok(Self(id))
     }
@@ -209,11 +215,7 @@ pub struct AuthorizationHeaderParams {
 
 impl AuthorizationHeaderParams {
     /// Create new authorization header parameters
-    pub fn new(
-        body: Vec<u8>,
-        subscriber_id: SubscriberId,
-        unique_key_id: UniqueKeyId,
-    ) -> Self {
+    pub fn new(body: Vec<u8>, subscriber_id: SubscriberId, unique_key_id: UniqueKeyId) -> Self {
         Self {
             body,
             subscriber_id,
@@ -310,9 +312,10 @@ pub fn validate_ed25519_private_key_length(key: &[u8]) -> Result<(), crate::ONDC
 /// Validate BLAKE2b output length
 pub fn validate_blake2b_output_length(length: usize) -> Result<(), crate::ONDCCryptoError> {
     if length == 0 || length > BLAKE2B_MAX_OUTPUT_LENGTH {
-        return Err(crate::ONDCCryptoError::ConfigError(
-            format!("BLAKE2b output length must be 1-{} bytes", BLAKE2B_MAX_OUTPUT_LENGTH)
-        ));
+        return Err(crate::ONDCCryptoError::ConfigError(format!(
+            "BLAKE2b output length must be 1-{} bytes",
+            BLAKE2B_MAX_OUTPUT_LENGTH
+        )));
     }
     Ok(())
 }
@@ -320,10 +323,14 @@ pub fn validate_blake2b_output_length(length: usize) -> Result<(), crate::ONDCCr
 /// Validate timestamp tolerance
 pub fn validate_timestamp_tolerance(tolerance: u64) -> Result<(), crate::ONDCCryptoError> {
     if tolerance == 0 {
-        return Err(crate::ONDCCryptoError::ConfigError("timestamp tolerance cannot be zero".into()));
+        return Err(crate::ONDCCryptoError::ConfigError(
+            "timestamp tolerance cannot be zero".into(),
+        ));
     }
     if tolerance > 86400 {
-        return Err(crate::ONDCCryptoError::ConfigError("timestamp tolerance cannot exceed 24 hours".into()));
+        return Err(crate::ONDCCryptoError::ConfigError(
+            "timestamp tolerance cannot exceed 24 hours".into(),
+        ));
     }
     Ok(())
 }
@@ -381,4 +388,4 @@ impl<A, T> AsRef<T> for Key<A, T> {
 pub type Ed25519Key = Key<Ed25519, Ed25519PublicKeyBytes>;
 
 /// Type alias for X25519 public key with algorithm marker
-pub type X25519Key = Key<X25519, X25519PublicKey>; 
+pub type X25519Key = Key<X25519, X25519PublicKey>;

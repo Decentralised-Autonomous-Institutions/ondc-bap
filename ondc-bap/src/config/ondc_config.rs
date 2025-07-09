@@ -22,13 +22,15 @@ impl Environment {
             Environment::Production => "https://prod.registry.ondc.org",
         }
     }
-    
+
     /// Get the ONDC public key for this environment
     pub fn ondc_public_key(&self) -> &'static str {
         match self {
             Environment::Staging => "MCowBQYDK2VuAyEAduMuZgmtpjdCuxv+Nc49K0cB6tL/Dj3HZetvVN7ZekM=",
             Environment::PreProd => "MCowBQYDK2VuAyEAa9Wbpvd9SsrpOZFcynyt/TO3x0Yrqyys4NUGIvyxX2Q=",
-            Environment::Production => "MCowBQYDK2VuAyEAvVEyZY91O2yV8w8/CAwVDAnqIZDJJUPdLUUKwLo3K0M=",
+            Environment::Production => {
+                "MCowBQYDK2VuAyEAvVEyZY91O2yV8w8/CAwVDAnqIZDJJUPdLUUKwLo3K0M="
+            }
         }
     }
 }
@@ -75,7 +77,7 @@ impl ONDCConfig {
             max_retries: 3,
         }
     }
-    
+
     /// Get the ONDC public key for this environment
     pub fn ondc_public_key(&self) -> &'static str {
         self.environment.ondc_public_key()
@@ -101,17 +103,35 @@ mod tests {
 
     #[test]
     fn test_environment_parsing() {
-        assert_eq!("staging".parse::<Environment>().unwrap(), Environment::Staging);
-        assert_eq!("preprod".parse::<Environment>().unwrap(), Environment::PreProd);
-        assert_eq!("production".parse::<Environment>().unwrap(), Environment::Production);
+        assert_eq!(
+            "staging".parse::<Environment>().unwrap(),
+            Environment::Staging
+        );
+        assert_eq!(
+            "preprod".parse::<Environment>().unwrap(),
+            Environment::PreProd
+        );
+        assert_eq!(
+            "production".parse::<Environment>().unwrap(),
+            Environment::Production
+        );
         assert!("invalid".parse::<Environment>().is_err());
     }
 
     #[test]
     fn test_environment_urls() {
-        assert_eq!(Environment::Staging.registry_url(), "https://staging.registry.ondc.org");
-        assert_eq!(Environment::PreProd.registry_url(), "https://preprod.registry.ondc.org");
-        assert_eq!(Environment::Production.registry_url(), "https://prod.registry.ondc.org");
+        assert_eq!(
+            Environment::Staging.registry_url(),
+            "https://staging.registry.ondc.org"
+        );
+        assert_eq!(
+            Environment::PreProd.registry_url(),
+            "https://preprod.registry.ondc.org"
+        );
+        assert_eq!(
+            Environment::Production.registry_url(),
+            "https://prod.registry.ondc.org"
+        );
     }
 
     #[test]
@@ -127,6 +147,9 @@ mod tests {
         let config = ONDCConfig::new(Environment::Production, "test.com".to_string());
         assert_eq!(config.environment, Environment::Production);
         assert_eq!(config.subscriber_id, "test.com");
-        assert_eq!(config.registry_base_url, Environment::Production.registry_url());
+        assert_eq!(
+            config.registry_base_url,
+            Environment::Production.registry_url()
+        );
     }
-} 
+}
