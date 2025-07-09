@@ -18,6 +18,8 @@ ondc-crypto-traits = { path = "../ondc-crypto-traits" }
 ed25519-dalek = { workspace = true, features = ["rand_core"] }
 blake2b_simd = { workspace = true }
 x25519-dalek = { workspace = true, features = ["static_secrets"] }
+aes = "0.8"
+cipher = "0.4"
 
 # Memory safety
 zeroize = { workspace = true }

@@ -39,9 +39,20 @@ All foundational cryptographic components have been successfully implemented:
 - ✅ **Testing**: Unit tests and integration tests for all functionality
 - ✅ **ONDC Compliance**: Ed25519 signing without hashing as per ONDC requirements
 
-**CRITICAL GAP IDENTIFIED**: Challenge processing and registry client implementation still needed
+**Task 4.3.1 COMPLETED** ✅ - Challenge processing and on_subscribe endpoint implementation
 
-**Next Phase**: Implement Challenge Processing (Task 4.3.1) and Registry Client (Task 4.4.1)
+**Key Accomplishments:**
+- ✅ **AES-256-ECB Implementation**: Modern RustCrypto-based AES decryption
+- ✅ **Challenge Service**: Complete challenge processing with X25519 key exchange
+- ✅ **ONDC Public Key Management**: Environment-specific public keys (staging/preprod/prod)
+- ✅ **Request Validation**: Comprehensive validation of on_subscribe requests
+- ✅ **Error Handling**: Specific error types for challenge processing failures
+- ✅ **Integration**: Full integration with existing key management and configuration systems
+- ✅ **ONDC Compliance**: Exact implementation of ONDC challenge-response protocol
+
+**CRITICAL GAP IDENTIFIED**: Registry client implementation still needed
+
+**Next Phase**: Implement Registry Client (Task 4.4.1) and Onboarding Service (Task 5.1.1)
 
 ## Phase 1: Project Foundation & Setup (Week 1) ✅
 
@@ -63,6 +74,7 @@ All foundational cryptographic components have been successfully implemented:
 - [x] **Task 2.2.1**: Ed25519 implementation
 - [x] **Task 2.2.2**: Ed25519 verification
 - [x] **Task 2.2.3**: X25519 key exchange
+- [x] **Task 2.2.4**: AES-256-ECB decryption (NEW)
 
 ### 2.3 ondc-crypto-formats Crate ✅
 - [x] **Task 2.3.1**: Base64 encoding utilities
@@ -167,8 +179,8 @@ All foundational cryptographic components have been successfully implemented:
 
 ## Phase 4: ONDC Protocol Implementation (Week 7) - UPDATED PRIORITY
 
-### 4.1 ONDC Configuration Enhancement (CRITICAL)
-- [x] **Task 4.1.1**: Add ONDC-specific configuration
+### 4.1 ONDC Configuration Enhancement (CRITICAL) ✅
+- [x] **Task 4.1.1**: Add ONDC-specific configuration ✅
   ```rust
   // Priority: Critical | Estimated: 0.5 days
   #[derive(Debug, Clone, Deserialize)]
@@ -220,8 +232,8 @@ All foundational cryptographic components have been successfully implemented:
   - [x] Validate signature generation process ✅
   - [x] Store request_id for later verification ✅
 
-### 4.3 Challenge Processing Implementation (CRITICAL)
-- [ ] **Task 4.3.1**: Implement actual on-subscribe endpoint
+### 4.3 Challenge Processing Implementation (CRITICAL) ✅
+- [x] **Task 4.3.1**: Implement actual on-subscribe endpoint ✅
   ```rust
   // Priority: Critical | Estimated: 1.5 days
   pub async fn handle_on_subscribe(
@@ -242,12 +254,12 @@ All foundational cryptographic components have been successfully implemented:
       }))
   }
   ```
-  - [ ] Implement X25519 shared secret generation with ONDC public key
-  - [ ] Implement AES-256-ECB challenge decryption
-  - [ ] Add proper error handling for crypto failures
-  - [ ] Add comprehensive logging for debugging
-  - [ ] Validate challenge format and length
-  - [ ] Add timeout handling for crypto operations
+  - [x] Implement X25519 shared secret generation with ONDC public key ✅
+  - [x] Implement AES-256-ECB challenge decryption ✅
+  - [x] Add proper error handling for crypto failures ✅
+  - [x] Add comprehensive logging for debugging ✅
+  - [x] Validate challenge format and length ✅
+  - [x] Add timeout handling for crypto operations ✅
 
 ### 4.4 Registry Client Implementation (CRITICAL)
 - [ ] **Task 4.4.1**: Create registry HTTP client
@@ -529,11 +541,10 @@ All foundational cryptographic components have been successfully implemented:
 **Critical Path Dependencies**: Updated for ONDC compliance
 
 ### Critical Path Dependencies (Updated)
-1. **Phase 4.1-4.3** → **Phase 4.4** (ONDC config → Registry client)
-2. **Phase 4.4** → **Phase 5.1** (Registry client → Onboarding service)
-3. **Phase 5.1** → **Phase 6.1** (Onboarding service → Admin API)
-4. **Phase 6.1** → **Phase 7.1** (Admin API → Testing)
-5. **Phase 7.1** → **Phase 8.1** (Testing → Documentation)
+1. **Phase 4.4** → **Phase 5.1** (Registry client → Onboarding service)
+2. **Phase 5.1** → **Phase 6.1** (Onboarding service → Admin API)
+3. **Phase 6.1** → **Phase 7.1** (Admin API → Testing)
+4. **Phase 7.1** → **Phase 8.1** (Testing → Documentation)
 
 ### Risk Mitigation (Updated)
 - **ONDC Protocol Compliance**: Regular validation against official specifications

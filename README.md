@@ -1,207 +1,261 @@
-# ONDC Crypto SDK for Rust
+# ONDC BAP Server - Network Participant Implementation
 
 [![Rust](https://img.shields.io/badge/rust-stable-brightgreen.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE)
-[![Crates.io](https://img.shields.io/crates/v/ondc-crypto)](https://crates.io/crates/ondc-crypto)
-[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://docs.rs/ondc-crypto)
+[![ONDC](https://img.shields.io/badge/ONDC-Network%20Participant-orange.svg)](https://ondc.org/)
 
-A production-ready cryptographic SDK for the Open Network for Digital Commerce (ONDC) platform, implemented in Rust with a focus on security, performance, and developer experience.
+A production-ready ONDC BAP (Beckn Application Platform) server implementation in Rust, designed to onboard as a Network Participant in the ONDC (Open Network for Digital Commerce) ecosystem. This server provides all required endpoints for ONDC registry integration and participant onboarding.
 
-## 🚀 Features
+## 🎯 Project Goal
 
-- **🔐 Ed25519 Digital Signatures**: Secure signing and verification using Ed25519
-- **🏃 BLAKE2 Hashing**: Fast and secure hashing with BLAKE2b-512
-- **🌐 HTTP Signature Support**: ONDC-compliant HTTP authorization headers
-- **🔄 X25519 Key Exchange**: Elliptic curve Diffie-Hellman key exchange
-- **🛡️ Memory Safety**: Automatic zeroization of sensitive data
-- **⚡ High Performance**: Zero-cost abstractions and SIMD optimizations
-- **🔧 Developer Friendly**: Comprehensive error handling and documentation
+**Primary Objective**: Successfully onboard as a Network Participant in the ONDC ecosystem by implementing a compliant BAP server that can:
+
+- ✅ Generate and serve site verification pages with Ed25519 signatures
+- ✅ Process ONDC challenge-response authentication via X25519 key exchange and AES-256-ECB decryption
+- 🔄 Register with ONDC registry using `/subscribe` API
+- 🔄 Support all participant types (Buyer App, Seller App, Buyer & Seller App)
+- 🔄 Provide administrative endpoints for registration management
+
+## 🚀 Current Status
+
+**Phase 2 - Crypto Foundation**: ✅ **COMPLETED**
+- Ed25519 signing and verification with ONDC compliance
+- X25519 key exchange with secure key handling
+- AES-256-ECB decryption for challenge processing
+- Base64 encoding utilities and key format conversions
+
+**Phase 3 - BAP Server Core**: ✅ **COMPLETED**
+- Axum web server with production-ready middleware stack
+- Site verification endpoint (`/ondc-site-verification.html`)
+- Challenge processing endpoint (`/on_subscribe`)
+- Comprehensive configuration management
+- Security headers, rate limiting, and error handling
+
+**Phase 4 - ONDC Protocol**: 🚧 **IN PROGRESS**
+- ✅ Site verification implementation
+- ✅ Challenge processing implementation
+- 🔄 Registry client implementation (Next)
+- 🔄 Onboarding service orchestration
 
 ## 📦 Installation
 
-Add the following to your `Cargo.toml`:
+### Prerequisites
+
+1. **Domain Name**: Valid FQDN for your Network Participant
+2. **SSL Certificate**: Valid SSL certificate for your domain
+3. **ONDC Whitelisting**: Approval from ONDC for your subscriber_id
+4. **Rust Environment**: Rust 1.70+ with Cargo
+
+### Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/ondc-bap-server.git
+cd ondc-bap-server
+
+# Build the project
+cargo build --release
+
+# Run with staging configuration
+ONDC_ENV=staging cargo run --bin ondc-bap
+```
+
+### Configuration
+
+Create environment-specific configuration files:
 
 ```toml
-[dependencies]
-ondc-crypto = "0.1.0"
-```
+# config/staging.toml
+[server]
+host = "0.0.0.0"
+port = 8080
 
-Or install specific crates for modular usage:
+[ondc]
+environment = "staging"
+subscriber_id = "your-domain.com"
+callback_url = "/ondc"
 
-```toml
-[dependencies]
-ondc-crypto-traits = "0.1.0"      # Core traits and error types
-ondc-crypto-algorithms = "0.1.0"  # Cryptographic implementations
-ondc-crypto-http = "0.1.0"        # HTTP signature handling
-ondc-crypto-formats = "0.1.0"     # Encoding and format utilities
-ondc-crypto-utils = "0.1.0"       # Helper utilities
-```
-
-## 🎯 Quick Start
-
-### Basic Usage
-
-```rust
-use ondc_crypto::ONDCCrypto;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize with your private key
-    let private_key = b"your-32-byte-private-key-here...";
-    let crypto = ONDCCrypto::new(private_key)?;
-    
-    // Create authorization header for ONDC request
-    let request_body = br#"{"context": {"action": "search"}}"#;
-    let subscriber_id = "your.subscriber.id";
-    let unique_key_id = "your-unique-key-id";
-    
-    let auth_header = crypto.create_authorization_header(
-        request_body,
-        subscriber_id,
-        unique_key_id,
-    )?;
-    
-    println!("Authorization: {}", auth_header);
-    Ok(())
-}
-```
-
-### Verification
-
-```rust
-use ondc_crypto::ONDCCrypto;
-
-fn verify_request() -> Result<(), Box<dyn std::error::Error>> {
-    let crypto = ONDCCrypto::new(&[0u8; 32])?; // Dummy key for verification
-    
-    let auth_header = r#"Signature keyId="subscriber|key|ed25519",algorithm="ed25519",created="1234567890",expires="1234567890",headers="(created) (expires) digest",signature="base64-signature""#;
-    let request_body = br#"{"context": {"action": "search"}}"#;
-    let public_key = b"32-byte-public-key";
-    
-    let is_valid = crypto.verify_authorization_header(
-        auth_header,
-        request_body,
-        public_key,
-    )?;
-    
-    if is_valid {
-        println!("✅ Request verified successfully!");
-    } else {
-        println!("❌ Request verification failed!");
-    }
-    
-    Ok(())
-}
-```
-
-### Advanced Configuration
-
-```rust
-use ondc_crypto::{ONDCCrypto, ONDCConfig};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ONDCConfig {
-        timestamp_tolerance_seconds: 300,  // 5 minutes
-        default_expiry_hours: 2,
-        strict_verification: true,
-    };
-    
-    let private_key = b"your-32-byte-private-key-here...";
-    let crypto = ONDCCrypto::with_config(private_key, config)?;
-    
-    // Use with custom configuration...
-    Ok(())
-}
+[keys]
+signing_private_key = "base64-encoded-ed25519-private-key"
+encryption_private_key = "base64-encoded-x25519-private-key"
+unique_key_id = "key-1"
 ```
 
 ## 🏗️ Architecture
 
-The SDK is organized into focused crates for modular usage:
+The project follows a layered architecture with modular crates:
 
 ```
-ondc-crypto/                    # Main SDK (high-level API)
-├── ondc-crypto-traits/        # Core traits and error types
-├── ondc-crypto-algorithms/    # Cryptographic implementations
-├── ondc-crypto-http/          # HTTP signature handling
-├── ondc-crypto-formats/       # Encoding and format utilities
-└── ondc-crypto-utils/         # Helper utilities
+ondc-bap/                           # Main BAP server
+├── ondc-crypto-traits/            # Core traits and error types
+├── ondc-crypto-algorithms/        # Cryptographic implementations
+├── ondc-crypto-formats/           # Encoding and format utilities
+└── ondc-crypto-cli/               # Command-line utilities
 ```
 
-### Crate Dependencies
+### Key Components
 
-- **ondc-crypto-traits**: Foundation traits (`Signer`, `Verifier`, `Hasher`) and error types
-- **ondc-crypto-algorithms**: Ed25519, BLAKE2, and X25519 implementations
-- **ondc-crypto-http**: ONDC HTTP signature generation and verification
-- **ondc-crypto-formats**: Base64 encoding, key format conversions
-- **ondc-crypto-utils**: Timestamp utilities, validation helpers
+- **Presentation Layer**: Axum HTTP server with middleware stack
+- **Services Layer**: Business logic for onboarding and challenge processing
+- **Infrastructure Layer**: Configuration, logging, and external integrations
+- **Crypto Foundation**: Secure cryptographic operations for ONDC compliance
+
+## 🔐 ONDC Compliance Features
+
+### 1. Site Verification
+```rust
+// Generates ONDC-compliant site verification page
+GET /ondc-site-verification.html
+```
+
+**Features**:
+- ✅ Unique request ID generation (UUID format)
+- ✅ Ed25519 signing without hashing (ONDC requirement)
+- ✅ Proper HTML meta tag format
+- ✅ Request ID storage with TTL
+
+### 2. Challenge Processing
+```rust
+// Processes ONDC challenge-response authentication
+POST /on_subscribe
+{
+  "subscriber_id": "your-domain.com",
+  "challenge": "base64-encoded-encrypted-challenge"
+}
+```
+
+**Features**:
+- ✅ X25519 key exchange with ONDC public keys
+- ✅ AES-256-ECB challenge decryption
+- ✅ Environment-specific ONDC public keys
+- ✅ Comprehensive error handling and validation
+
+### 3. Registry Integration (In Progress)
+```rust
+// Registry client for ONDC API integration
+POST /subscribe  // Participant registration
+POST /v2.0/lookup  // Participant lookup
+```
+
+**Planned Features**:
+- 🔄 HTTP signature generation for authenticated requests
+- 🔄 Retry logic with exponential backoff
+- 🔄 Rate limiting compliance
+- 🔄 Environment-specific registry URLs
+
+## 🛡️ Security Features
+
+- **Memory Safety**: Automatic zeroization of sensitive data
+- **Cryptographic Security**: Ed25519/X25519/AES-256-ECB operations
+- **Input Validation**: Comprehensive request validation
+- **Rate Limiting**: Per-IP adaptive rate limiting
+- **Security Headers**: Production-ready security middleware
+- **TLS Support**: HTTPS configuration for production
+
+## 📚 Documentation
+
+- **[Technical Guide](docs/technical.md)** - Implementation details and patterns
+- **[Architecture](docs/architecture.mermaid)** - System design and data flows
+- **[Project Status](docs/status.md)** - Implementation progress and roadmap
+- **[ONDC Onboarding Guide](docs/Onboarding%20of%20Participants.md)** - ONDC-specific requirements
 
 ## 🔧 Development
-
-### Prerequisites
-
-- Rust 1.70+ (stable)
-- Cargo
 
 ### Building
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/ondc-crypto-rs.git
-cd ondc-crypto-rs
-
 # Build all crates
 cargo build
+
+# Build with optimizations
+cargo build --release
 
 # Run tests
 cargo test
 
-# Build documentation
-cargo doc --open
+# Check code quality
+cargo clippy
+cargo fmt
 ```
 
-### Development Commands
+### Configuration Management
 
 ```bash
-# Format code
-make fmt
+# Development environment
+ONDC_ENV=staging cargo run
 
-# Run linter
-make clippy
+# Production environment
+ONDC_ENV=production cargo run --release
 
-# Run tests
-make test
-
-# Check security
-make audit
-
-# Build documentation
-make doc
+# Custom configuration
+ONDC_SUBSCRIBER_ID=your-domain.com cargo run
 ```
 
-## 📚 Documentation
+### Key Generation
 
-- **[API Documentation](https://docs.rs/ondc-crypto)** - Complete API reference
-- **[Technical Guide](docs/technical.md)** - Implementation details and patterns
-- **[Architecture](docs/architecture.mermaid)** - System design and data flows
-- **[Development Setup](docs/dev-environment-setup.md)** - Environment configuration
-- **[Project Status](docs/status.md)** - Implementation progress and roadmap
+Use the provided CLI utilities for key generation:
 
-## 🔒 Security
+```bash
+# Generate Ed25519 signing key pair
+cargo run --bin ondc-crypto-cli -- generate-signing-keys
 
-This SDK implements several security best practices:
+# Generate X25519 encryption key pair
+cargo run --bin ondc-crypto-cli -- generate-encryption-keys
 
-- **Memory Safety**: Automatic zeroization of sensitive data using `zeroize`
-- **Constant-Time Operations**: Timing attack resistance with `subtle`
-- **Input Validation**: Comprehensive validation of all inputs
-- **Error Handling**: Secure error messages that don't leak sensitive information
-- **Dependency Auditing**: Regular security audits of all dependencies
+# Convert key formats
+cargo run --bin ondc-crypto-cli -- convert-key-format
+```
 
-### Security Considerations
+## 🚀 Deployment
 
-- Always use the latest version of the SDK
-- Keep your private keys secure and never commit them to version control
-- Use strong, randomly generated keys
-- Validate all inputs before processing
-- Handle errors appropriately in your application
+### Docker Deployment
+
+```dockerfile
+# Multi-stage build for production
+FROM rust:1.70 as builder
+WORKDIR /app
+COPY . .
+RUN cargo build --release
+
+FROM debian:bullseye-slim
+COPY --from=builder /app/target/release/ondc-bap /usr/local/bin/
+EXPOSE 8080
+CMD ["ondc-bap"]
+```
+
+### Kubernetes Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ondc-bap-server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ondc-bap-server
+  template:
+    metadata:
+      labels:
+        app: ondc-bap-server
+    spec:
+      containers:
+      - name: ondc-bap
+        image: ondc-bap-server:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: ONDC_ENV
+          value: "production"
+```
+
+## 🔍 Monitoring and Observability
+
+- **Health Checks**: `/health` endpoint for system status
+- **Metrics**: Prometheus-style metrics collection
+- **Logging**: Structured logging with tracing
+- **Error Tracking**: Comprehensive error handling and reporting
 
 ## 🤝 Contributing
 
@@ -217,13 +271,6 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 6. Push to the branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
 
-### Code Style
-
-- Follow Rust formatting guidelines (`cargo fmt`)
-- Address all clippy warnings (`cargo clippy`)
-- Write comprehensive tests
-- Add documentation for all public APIs
-
 ## 📄 License
 
 This project is licensed under either of
@@ -236,29 +283,28 @@ at your option.
 ## 🙏 Acknowledgments
 
 - [ONDC](https://ondc.org/) for the specification and protocol
-- [ed25519-dalek](https://github.com/dalek-cryptography/ed25519-dalek) for Ed25519 implementation
-- [blake2b_simd](https://github.com/cesarb/blake2b_simd) for BLAKE2 implementation
-- [zeroize](https://github.com/iqlusioninc/crates/tree/main/zeroize) for memory safety
-- [subtle](https://github.com/dalek-cryptography/subtle) for constant-time operations
+- [Beckn Protocol](https://becknprotocol.io/) for the underlying protocol
+- [Rust Crypto](https://github.com/RustCrypto) for cryptographic implementations
+- [Axum](https://github.com/tokio-rs/axum) for the web framework
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/your-username/ondc-crypto-rs/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/ondc-crypto-rs/discussions)
-- **Documentation**: [API Docs](https://docs.rs/ondc-crypto)
+- **Issues**: [GitHub Issues](https://github.com/your-username/ondc-bap-server/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/your-username/ondc-bap-server/discussions)
+- **ONDC Support**: techsupport@ondc.org
 
 ## 🗺️ Roadmap
 
-See our [Project Status](docs/status.md) for detailed implementation progress and upcoming features.
+See our [Project Status](docs/status.md) for detailed implementation progress.
 
-### Upcoming Features
+### Next Milestones
 
-- [ ] Async/await support
-- [ ] WebAssembly (WASM) support
-- [ ] Additional cryptographic algorithms
-- [ ] Performance optimizations
-- [ ] Extended ONDC protocol support
+- [ ] Registry client implementation
+- [ ] Onboarding service orchestration
+- [ ] Administrative API endpoints
+- [ ] Integration testing with ONDC environments
+- [ ] Production deployment guides
 
 ---
 
-**Note**: This SDK is currently in active development. The API may change between versions until we reach 1.0.0. Please check the [changelog](CHANGELOG.md) for breaking changes. 
+**Note**: This project is designed to help organizations successfully onboard as Network Participants in the ONDC ecosystem. The implementation follows ONDC specifications and best practices for secure, scalable, and maintainable BAP server development. 

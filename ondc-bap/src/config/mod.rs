@@ -38,6 +38,9 @@ pub enum ConfigError {
     #[error("Invalid encryption key length: expected 32 bytes, got {0}")]
     InvalidEncryptionKeyLength(usize),
 
+    #[error("Invalid ONDC key: {0}")]
+    InvalidONDCKey(String),
+
     #[error("Missing required configuration: {0}")]
     MissingConfig(String),
 }

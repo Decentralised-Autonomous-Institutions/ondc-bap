@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use crate::config::BAPConfig;
-use crate::services::{KeyManagementService, SiteVerificationService};
+use crate::services::{KeyManagementService, SiteVerificationService, ChallengeService};
 
 /// Application state shared across all handlers
 #[derive(Clone)]
@@ -11,10 +11,10 @@ pub struct AppState {
     pub config: Arc<BAPConfig>,
     pub key_manager: Arc<KeyManagementService>,
     pub site_verification_service: Arc<SiteVerificationService>,
+    pub challenge_service: Arc<ChallengeService>,
     // TODO: Add other services as they are implemented
     // pub onboarding_service: Arc<OnboardingService>,
     // pub registry_client: Arc<RegistryClient>,
-    // pub challenge_service: Arc<ChallengeService>,
 }
 
 impl AppState {
@@ -24,11 +24,16 @@ impl AppState {
             key_manager.clone(),
             config.clone(),
         ));
+        let challenge_service = Arc::new(ChallengeService::new(
+            key_manager.clone(),
+            config.clone(),
+        ));
 
         Self {
             config,
             key_manager,
             site_verification_service,
+            challenge_service,
         }
     }
 }

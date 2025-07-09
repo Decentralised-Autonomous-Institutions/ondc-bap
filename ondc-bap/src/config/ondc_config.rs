@@ -1,6 +1,8 @@
 //! ONDC-specific configuration
 
 use serde::{Deserialize, Serialize};
+use ondc_crypto_formats::decode_signature;
+use crate::config::ConfigError;
 
 /// ONDC environment types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -81,6 +83,22 @@ impl ONDCConfig {
     /// Get the ONDC public key for this environment
     pub fn ondc_public_key(&self) -> &'static str {
         self.environment.ondc_public_key()
+    }
+
+    /// Get the decoded ONDC public key as raw bytes
+    pub fn ondc_public_key_bytes(&self) -> Result<[u8; 32], ConfigError> {
+        let public_key_b64 = self.ondc_public_key();
+        let decoded = decode_signature(public_key_b64)
+            .map_err(|e| ConfigError::InvalidONDCKey(format!("Failed to decode ONDC public key: {}", e)))?;
+        
+        // Extract raw key from DER format (last 32 bytes)
+        if decoded.len() < 32 {
+            return Err(ConfigError::InvalidONDCKey("ONDC public key too short".to_string()));
+        }
+        
+        let mut key = [0u8; 32];
+        key.copy_from_slice(&decoded[decoded.len() - 32..]);
+        Ok(key)
     }
 }
 

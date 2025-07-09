@@ -5,23 +5,11 @@ use axum::{
     http::StatusCode,
     response::{Html, Json as JsonResponse},
 };
-use serde::{Deserialize, Serialize};
 use tracing::{error, info, instrument};
 
 use super::AppState;
-
-/// On-subscribe request from ONDC registry
-#[derive(Deserialize)]
-pub struct OnSubscribeRequest {
-    pub subscriber_id: String,
-    pub challenge: String,
-}
-
-/// On-subscribe response to ONDC registry
-#[derive(Serialize)]
-pub struct OnSubscribeResponse {
-    pub answer: String,
-}
+use crate::services::{OnSubscribeRequest, OnSubscribeResponse};
+use ondc_crypto_formats::decode_signature;
 
 /// Site verification endpoint
 #[instrument(skip(state))]
@@ -47,24 +35,34 @@ pub async fn serve_site_verification(
 }
 
 /// Handle on-subscribe challenge from ONDC registry
+#[instrument(skip(state, request), fields(subscriber_id = %request.subscriber_id))]
 pub async fn handle_on_subscribe(
-    State(_state): State<AppState>,
-    Json(_request): Json<OnSubscribeRequest>,
+    State(state): State<AppState>,
+    Json(request): Json<OnSubscribeRequest>,
 ) -> Result<JsonResponse<OnSubscribeResponse>, StatusCode> {
     info!("On-subscribe challenge received");
 
-    // TODO: Implement actual challenge processing logic
-    // - Generate X25519 shared secret
-    // - Decrypt challenge using AES-256-ECB
-    // - Return decrypted answer
+    // Validate request
+    if let Err(e) = validate_on_subscribe_request(&request) {
+        error!("Invalid on_subscribe request: {}", e);
+        return Err(StatusCode::BAD_REQUEST);
+    }
 
-    Ok(JsonResponse(OnSubscribeResponse {
-        answer: "placeholder_challenge_response".to_string(),
-    }))
+    // Process challenge
+    match state.challenge_service.process_challenge(request).await {
+        Ok(response) => {
+            info!("Challenge processed successfully");
+            Ok(JsonResponse(response))
+        }
+        Err(e) => {
+            error!("Failed to process challenge: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
 
 /// Participant information response
-#[derive(Serialize)]
+#[derive(serde::Serialize)]
 pub struct ParticipantInfo {
     pub subscriber_id: String,
     pub signing_public_key: String,
@@ -87,6 +85,24 @@ pub async fn get_participant_info(
         signing_public_key: "placeholder_signing_public_key".to_string(),
         encryption_public_key: "placeholder_encryption_public_key".to_string(),
         unique_key_id: "placeholder_key_id".to_string(),
-        status: "active".to_string(),
+        status: "placeholder_status".to_string(),
     }))
+}
+
+/// Validate on_subscribe request
+fn validate_on_subscribe_request(request: &OnSubscribeRequest) -> Result<(), String> {
+    if request.subscriber_id.is_empty() {
+        return Err("Subscriber ID cannot be empty".to_string());
+    }
+
+    if request.challenge.is_empty() {
+        return Err("Challenge cannot be empty".to_string());
+    }
+
+    // Validate base64 format
+    if let Err(_) = decode_signature(&request.challenge) {
+        return Err("Challenge must be valid base64".to_string());
+    }
+
+    Ok(())
 }
