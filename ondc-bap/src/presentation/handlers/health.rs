@@ -1,9 +1,6 @@
 //! Health check handlers for ONDC BAP Server
 
-use axum::{
-    response::Json,
-    http::StatusCode,
-};
+use axum::{http::StatusCode, response::Json};
 use serde::Serialize;
 use tracing::info;
 
@@ -19,7 +16,7 @@ pub struct HealthResponse {
 /// Basic health check endpoint
 pub async fn health_check() -> Json<HealthResponse> {
     info!("Health check requested");
-    
+
     Json(HealthResponse {
         status: "healthy".to_string(),
         timestamp: chrono::Utc::now().to_rfc3339(),
@@ -38,4 +35,4 @@ pub async fn readiness_check() -> StatusCode {
 pub async fn liveness_check() -> StatusCode {
     // TODO: Implement liveness checks
     StatusCode::OK
-} 
+}

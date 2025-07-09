@@ -1,6 +1,6 @@
 //! BLAKE2 hashing implementation.
 
-use ondc_crypto_traits::{ONDCCryptoError, Hasher};
+use ondc_crypto_traits::{Hasher, ONDCCryptoError};
 
 /// BLAKE2 hasher implementation.
 pub struct Blake2Hasher;
@@ -25,4 +25,4 @@ impl Hasher for Blake2Hasher {
         // TODO: Implement BLAKE2 hashing with custom length
         todo!("BLAKE2 hashing with custom length implementation")
     }
-} 
+}

@@ -1,21 +1,21 @@
 //! ONDC BAP (Beckn Application Platform) Server
-//! 
+//!
 //! A production-ready ONDC BAP server implementation in Rust that handles
 //! ONDC network participant onboarding and provides required endpoints for
 //! registry integration.
-//! 
+//!
 //! ## Features
-//! 
+//!
 //! - **ONDC Protocol Compliance**: Full implementation of ONDC registry APIs
 //! - **Cryptographic Security**: Built on secure crypto foundation
 //! - **Production Ready**: Comprehensive logging, monitoring, and error handling
 //! - **Layered Architecture**: Clean separation of concerns with Axum web framework
-//! 
+//!
 //! ## Quick Start
-//! 
+//!
 //! ```rust
 //! use ondc_bap::BAPServer;
-//! 
+//!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let server = BAPServer::new().await?;
@@ -24,10 +24,10 @@
 //! ```
 
 pub mod config;
+pub mod error;
+pub mod infrastructure;
 pub mod presentation;
 pub mod services;
-pub mod infrastructure;
-pub mod error;
 
 // Re-export main types for convenience
 pub use config::BAPConfig;
@@ -64,4 +64,4 @@ mod tests {
         assert_eq!(DEFAULT_HOST, "0.0.0.0");
         assert!(!DEFAULT_CONFIG_PATH.is_empty());
     }
-} 
+}

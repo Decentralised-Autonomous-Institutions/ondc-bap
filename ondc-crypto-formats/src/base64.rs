@@ -183,13 +183,16 @@ pub fn decode_signature(encoded: &str) -> Result<Vec<u8>, ONDCCryptoError> {
 ///
 /// Returns `ONDCCryptoError::EncodingError` if the input is not valid Base64
 /// for the specified variant.
-pub fn decode_signature_variant(encoded: &str, variant: Base64Variant) -> Result<Vec<u8>, ONDCCryptoError> {
+pub fn decode_signature_variant(
+    encoded: &str,
+    variant: Base64Variant,
+) -> Result<Vec<u8>, ONDCCryptoError> {
     let result = match variant {
         Base64Variant::Standard => STANDARD.decode(encoded),
         Base64Variant::UrlSafe => URL_SAFE.decode(encoded),
         Base64Variant::UrlSafeNoPad => URL_SAFE_NO_PAD.decode(encoded),
     };
-    
+
     result.map_err(|e| ONDCCryptoError::EncodingError(format!("Invalid Base64 encoding: {}", e)))
 }
 
@@ -288,19 +291,22 @@ mod tests {
         let invalid = "invalid!";
         let result = decode_signature(invalid);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ONDCCryptoError::EncodingError(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            ONDCCryptoError::EncodingError(_)
+        ));
     }
 
     #[test]
     fn test_encode_signature_variant() {
         let signature = [0x01, 0x02, 0x03, 0x04];
-        
+
         let standard = encode_signature_variant(&signature, Base64Variant::Standard);
         assert_eq!(standard, "AQIDBA==");
-        
+
         let url_safe = encode_signature_variant(&signature, Base64Variant::UrlSafe);
         assert_eq!(url_safe, "AQIDBA==");
-        
+
         let url_safe_no_pad = encode_signature_variant(&signature, Base64Variant::UrlSafeNoPad);
         assert_eq!(url_safe_no_pad, "AQIDBA");
     }
@@ -310,9 +316,10 @@ mod tests {
         let standard_encoded = "AQIDBA==";
         let decoded = decode_signature_variant(standard_encoded, Base64Variant::Standard).unwrap();
         assert_eq!(decoded, vec![0x01, 0x02, 0x03, 0x04]);
-        
+
         let url_safe_no_pad_encoded = "AQIDBA";
-        let decoded = decode_signature_variant(url_safe_no_pad_encoded, Base64Variant::UrlSafeNoPad).unwrap();
+        let decoded =
+            decode_signature_variant(url_safe_no_pad_encoded, Base64Variant::UrlSafeNoPad).unwrap();
         assert_eq!(decoded, vec![0x01, 0x02, 0x03, 0x04]);
     }
 
@@ -321,7 +328,7 @@ mod tests {
         let mut signature = Zeroizing::new(vec![0x01, 0x02, 0x03, 0x04]);
         let encoded = encode_signature_secure(&mut signature);
         assert_eq!(encoded, "AQIDBA==");
-        
+
         // Verify the signature was zeroized
         assert_eq!(signature.as_slice(), &[]);
     }
@@ -331,7 +338,7 @@ mod tests {
         let encoded = "AQIDBA==";
         let decoded = decode_signature_secure(encoded).unwrap();
         assert_eq!(decoded.as_slice(), &[0x01, 0x02, 0x03, 0x04]);
-        
+
         // The Zeroizing container will automatically zeroize when dropped
     }
 
@@ -348,7 +355,7 @@ mod tests {
         let empty = [];
         let encoded = encode_signature(&empty);
         assert_eq!(encoded, "");
-        
+
         let decoded = decode_signature("").unwrap();
         assert_eq!(decoded, vec![]);
     }
@@ -365,21 +372,18 @@ mod tests {
     fn test_ondc_compatibility() {
         // Test with data that matches ONDC signature patterns
         let signature = vec![
-            0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b,
-            0x9c, 0x0d, 0x1e, 0x2f, 0x3a, 0x4b, 0x5c, 0x6d,
-            0x7e, 0x8f, 0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f,
-            0x5a, 0x6b, 0x7c, 0x8d, 0x9e, 0x0f, 0x1a, 0x2b,
-            0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b, 0x9c, 0x0d,
-            0x1e, 0x2f, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f,
-            0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f, 0x5a, 0x6b,
+            0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b, 0x9c, 0x0d, 0x1e, 0x2f, 0x3a, 0x4b,
+            0x5c, 0x6d, 0x7e, 0x8f, 0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f, 0x5a, 0x6b, 0x7c, 0x8d,
+            0x9e, 0x0f, 0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b, 0x9c, 0x0d, 0x1e, 0x2f,
+            0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f, 0x9a, 0x0b, 0x1c, 0x2d, 0x3e, 0x4f, 0x5a, 0x6b,
             0x7c, 0x8d, 0x9e, 0x0f, 0x1a, 0x2b, 0x3c, 0x4d,
         ];
-        
+
         let encoded = encode_signature(&signature);
         let decoded = decode_signature(&encoded).unwrap();
         assert_eq!(decoded, signature);
-        
+
         // Verify the encoded string is valid for ONDC headers
         assert!(!encoded.contains('+') || !encoded.contains('/')); // Should be URL-safe if needed
     }
-} 
+}

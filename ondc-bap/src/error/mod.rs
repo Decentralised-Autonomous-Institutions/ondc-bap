@@ -7,19 +7,19 @@ use thiserror::Error;
 pub enum AppError {
     #[error("Configuration error: {0}")]
     Config(#[from] crate::config::ConfigError),
-    
+
     #[error("Registry error: {0}")]
     Registry(String),
-    
+
     #[error("Crypto error: {0}")]
     Crypto(String),
-    
+
     #[error("HTTP error: {0}")]
     Http(String),
-    
+
     #[error("Validation error: {0}")]
     Validation(String),
-    
+
     #[error("Internal error: {0}")]
     Internal(String),
 }
@@ -40,4 +40,4 @@ impl From<reqwest::Error> for AppError {
     fn from(err: reqwest::Error) -> Self {
         AppError::Http(err.to_string())
     }
-} 
+}

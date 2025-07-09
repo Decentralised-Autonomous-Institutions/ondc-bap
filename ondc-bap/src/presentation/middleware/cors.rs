@@ -2,11 +2,11 @@
 
 use axum::{
     extract::Request,
+    http::{HeaderValue, Method},
     middleware::Next,
     response::Response,
-    http::{HeaderValue, Method},
 };
-use tower_http::cors::{CorsLayer, Any};
+use tower_http::cors::{Any, CorsLayer};
 
 /// CORS middleware configuration
 pub fn cors_middleware() -> CorsLayer {
@@ -20,23 +20,25 @@ pub fn cors_middleware() -> CorsLayer {
             Method::OPTIONS,
         ])
         .allow_headers(Any)
-        .allow_credentials(true)
         .max_age(std::time::Duration::from_secs(3600))
 }
 
 /// Simple CORS middleware for development
-pub async fn cors_middleware_simple(
-    request: Request,
-    next: Next,
-) -> Response {
+pub async fn cors_middleware_simple(request: Request, next: Next) -> Response {
     let mut response = next.run(request).await;
-    
+
     // Add CORS headers
     let headers = response.headers_mut();
     headers.insert("Access-Control-Allow-Origin", HeaderValue::from_static("*"));
-    headers.insert("Access-Control-Allow-Methods", HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS"));
-    headers.insert("Access-Control-Allow-Headers", HeaderValue::from_static("Content-Type, Authorization"));
+    headers.insert(
+        "Access-Control-Allow-Methods",
+        HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS"),
+    );
+    headers.insert(
+        "Access-Control-Allow-Headers",
+        HeaderValue::from_static("Content-Type, Authorization"),
+    );
     headers.insert("Access-Control-Max-Age", HeaderValue::from_static("3600"));
-    
+
     response
-} 
+}

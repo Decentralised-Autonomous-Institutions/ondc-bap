@@ -44,10 +44,10 @@
 pub trait Signer {
     /// The error type returned by signing operations.
     type Error: std::error::Error + Send + Sync + 'static;
-    
+
     /// The signature type.
     type Signature: AsRef<[u8]>;
-    
+
     /// Sign a message.
     ///
     /// # Arguments
@@ -108,13 +108,13 @@ pub trait Signer {
 pub trait Verifier {
     /// The error type returned by verification operations.
     type Error: std::error::Error + Send + Sync + 'static;
-    
+
     /// The public key type.
     type PublicKey: AsRef<[u8]>;
-    
+
     /// The signature type.
     type Signature: AsRef<[u8]>;
-    
+
     /// Verify a signature.
     ///
     /// # Arguments
@@ -181,10 +181,10 @@ pub trait Verifier {
 pub trait Hasher {
     /// The error type returned by hashing operations.
     type Error: std::error::Error + Send + Sync + 'static;
-    
+
     /// The hash output type.
     type Output: AsRef<[u8]>;
-    
+
     /// Hash data with default output length.
     ///
     /// # Arguments
@@ -200,7 +200,7 @@ pub trait Hasher {
     /// Returns an error if hashing fails due to unsupported input or
     /// cryptographic failures.
     fn hash(&self, data: &[u8]) -> Result<Self::Output, Self::Error>;
-    
+
     /// Hash data with specified output length.
     ///
     /// # Arguments
@@ -272,13 +272,13 @@ pub trait Hasher {
 pub trait KeyPair {
     /// The error type returned by key pair operations.
     type Error: std::error::Error + Send + Sync + 'static;
-    
+
     /// The private key type.
     type PrivateKey: AsRef<[u8]> + zeroize::Zeroize;
-    
+
     /// The public key type.
     type PublicKey: AsRef<[u8]>;
-    
+
     /// Generate a new key pair.
     ///
     /// # Returns
@@ -298,7 +298,7 @@ pub trait KeyPair {
     fn generate() -> Result<Self, Self::Error>
     where
         Self: Sized;
-    
+
     /// Create a key pair from an existing private key.
     ///
     /// # Arguments
@@ -321,14 +321,14 @@ pub trait KeyPair {
     fn from_private_key(private_key: &[u8]) -> Result<Self, Self::Error>
     where
         Self: Sized;
-    
+
     /// Get the public key from this key pair.
     ///
     /// # Returns
     ///
     /// Returns a reference to the public key.
     fn public_key(&self) -> &Self::PublicKey;
-    
+
     /// Get the private key from this key pair.
     ///
     /// # Returns
@@ -383,7 +383,7 @@ pub trait KeyPair {
 pub trait PublicKey {
     /// The error type returned by public key operations.
     type Error: std::error::Error + Send + Sync + 'static;
-    
+
     /// Create a public key from raw bytes.
     ///
     /// # Arguments
@@ -400,14 +400,14 @@ pub trait PublicKey {
     fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error>
     where
         Self: Sized;
-    
+
     /// Convert the public key to raw bytes.
     ///
     /// # Returns
     ///
     /// Returns the public key as raw bytes.
     fn to_bytes(&self) -> Vec<u8>;
-    
+
     /// Validate the public key.
     ///
     /// # Returns
@@ -477,7 +477,7 @@ pub trait PublicKey {
 pub trait SigningString {
     /// The error type returned by signing string operations.
     type Error: std::error::Error + Send + Sync + 'static;
-    
+
     /// Create a signing string from a request body and optional timestamps.
     ///
     /// # Arguments
@@ -493,31 +493,27 @@ pub trait SigningString {
     /// # Errors
     ///
     /// Returns an error if timestamp validation fails or digest creation fails.
-    fn create(
-        body: &[u8],
-        created: Option<u64>,
-        expires: Option<u64>,
-    ) -> Result<Self, Self::Error>
+    fn create(body: &[u8], created: Option<u64>, expires: Option<u64>) -> Result<Self, Self::Error>
     where
         Self: Sized;
-    
+
     /// Convert the signing string to its string representation.
     ///
     /// # Returns
     ///
     /// Returns the signing string in the standard ONDC format.
     fn to_string(&self) -> String;
-    
+
     /// Get the creation timestamp.
     fn created(&self) -> u64;
-    
+
     /// Get the expiration timestamp.
     fn expires(&self) -> u64;
-    
+
     /// Get the digest string.
     fn digest(&self) -> &str;
 }
 
 // Note: ONDCCryptoError already implements std::error::Error + Send + Sync
 // via thiserror, so it can be automatically converted to Box<dyn std::error::Error + Send + Sync>
-// using the standard library's blanket implementation. 
+// using the standard library's blanket implementation.

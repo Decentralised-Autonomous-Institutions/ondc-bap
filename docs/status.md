@@ -29,7 +29,19 @@ All foundational cryptographic components have been successfully implemented:
 - ✅ **Service Integration**: KeyManager service integrated into application state
 - ✅ **Production Ready**: Security headers, request validation, comprehensive error handling
 
-**Next Phase**: Complete Domain Layer Implementation (Task 3.3.2)
+**Task 4.2.1 COMPLETED** ✅ - Site verification endpoint implementation
+
+**Key Accomplishments:**
+- ✅ **Site Verification Service**: Complete service with UUID generation and Ed25519 signing
+- ✅ **Request ID Storage**: In-memory storage with TTL for request ID tracking
+- ✅ **HTML Template Generation**: ONDC-compliant HTML with proper meta tags
+- ✅ **Error Handling**: Comprehensive error handling and logging
+- ✅ **Testing**: Unit tests and integration tests for all functionality
+- ✅ **ONDC Compliance**: Ed25519 signing without hashing as per ONDC requirements
+
+**CRITICAL GAP IDENTIFIED**: Challenge processing and registry client implementation still needed
+
+**Next Phase**: Implement Challenge Processing (Task 4.3.1) and Registry Client (Task 4.4.1)
 
 ## Phase 1: Project Foundation & Setup (Week 1) ✅
 
@@ -58,7 +70,7 @@ All foundational cryptographic components have been successfully implemented:
 
 ## Phase 3: BAP Server Core Implementation (Weeks 5-6)
 
-### 3.1 Workspace Restructuring
+### 3.1 Workspace Restructuring ✅
 - [x] **Task 3.1.1**: Rename and restructure main crate ✅
   ```toml
   # Priority: High | Estimated: 0.5 days
@@ -71,7 +83,7 @@ All foundational cryptographic components have been successfully implemented:
   - [x] Restructure directory layout for web server architecture ✅
   - [x] Update documentation and README files ✅
 
-- [x] **Task 3.1.2**: Add web server dependencies
+- [x] **Task 3.1.2**: Add web server dependencies ✅
   ```toml
   # Priority: High | Estimated: 0.5 days
   [dependencies]
@@ -86,8 +98,8 @@ All foundational cryptographic components have been successfully implemented:
   - [x] Add logging and tracing dependencies
   - [x] Add serialization dependencies (serde_json, toml)
 
-### 3.2 Configuration Management
-- [x] **Task 3.2.1**: Environment configuration system
+### 3.2 Configuration Management ✅
+- [x] **Task 3.2.1**: Environment configuration system ✅
   ```rust
   // Priority: High | Estimated: 1 day
   #[derive(Debug, Clone, Deserialize)]
@@ -103,7 +115,7 @@ All foundational cryptographic components have been successfully implemented:
   - [x] Support environment variable overrides
   - [x] Add configuration documentation and examples
 
-- [x] **Task 3.2.2**: Key management system
+- [x] **Task 3.2.2**: Key management system ✅
   ```rust
   // Priority: High | Estimated: 1 day
   pub struct KeyManager {
@@ -137,9 +149,9 @@ All foundational cryptographic components have been successfully implemented:
   - [x] **Enhanced**: Comprehensive IP extraction (X-Forwarded-For, X-Real-IP, CF-Connecting-IP)
   - [x] **Enhanced**: Production-ready middleware stack with security headers
 
-- [ ] **Task 3.3.2**: Domain layer implementation
+- [ ] **Task 3.3.2**: Domain layer implementation (DEFERRED - Phase 5)
   ```rust
-  // Priority: High | Estimated: 1 day
+  // Priority: Medium | Estimated: 1 day
   pub struct SubscriberInfo {
       pub subscriber_id: String,
       pub signing_public_key: String,
@@ -153,48 +165,99 @@ All foundational cryptographic components have been successfully implemented:
   - [ ] Create value objects with validation
   - [ ] Document domain boundaries and invariants
 
-## Phase 4: ONDC Protocol Implementation (Week 7)
+## Phase 4: ONDC Protocol Implementation (Week 7) - UPDATED PRIORITY
 
-### 4.1 Site Verification Implementation
-- [ ] **Task 4.1.1**: Site verification endpoint
+### 4.1 ONDC Configuration Enhancement (CRITICAL)
+- [x] **Task 4.1.1**: Add ONDC-specific configuration
   ```rust
-  // Priority: High | Estimated: 1 day
+  // Priority: Critical | Estimated: 0.5 days
+  #[derive(Debug, Clone, Deserialize)]
+  pub struct ONDCConfig {
+      pub environment: Environment,
+      pub registry_base_url: String,
+      pub subscriber_id: String,
+      pub callback_url: String,
+      pub request_timeout_secs: u64,
+      pub max_retries: usize,
+  }
+  
+  #[derive(Debug, Clone, Deserialize, PartialEq)]
+  pub enum Environment {
+      Staging,
+      PreProd,
+      Production,
+  }
+  ```
+  - [x] Add environment-specific registry URLs
+  - [x] Add ONDC public keys for each environment
+  - [x] Add subscriber ID and callback URL configuration
+  - [x] Add request timeout and retry configuration
+  - [x] Update configuration validation
+
+### 4.2 Site Verification Implementation (CRITICAL) ✅
+- [x] **Task 4.2.1**: Implement actual site verification endpoint ✅
+  ```rust
+  // Priority: Critical | Estimated: 1 day
   pub async fn serve_site_verification(
-      State(app_state): State<AppState>,
+      State(state): State<AppState>,
   ) -> Result<Html<String>, AppError> {
-      // Generate signed verification content
+      // Generate unique request_id
+      let request_id = uuid::Uuid::new_v4().to_string();
+      
+      // Sign request_id using Ed25519 (without hashing)
+      let signed_content = key_manager.sign_request_id(&request_id).await?;
+      
+      // Generate HTML content with signed verification
+      let html_content = generate_verification_html(&signed_content);
+      
+      Ok(Html(html_content))
   }
   ```
-  - [ ] Implement `/ondc-site-verification.html` endpoint
-  - [ ] Generate signed request_id using Ed25519
-  - [ ] Template HTML content generation
-  - [ ] Add proper content-type headers
-  - [ ] Validate signature generation process
+  - [x] Generate unique request_id (UUID format) ✅
+  - [x] Sign request_id using Ed25519 without hashing ✅
+  - [x] Template HTML content generation with proper meta tag ✅
+  - [x] Add proper content-type headers ✅
+  - [x] Validate signature generation process ✅
+  - [x] Store request_id for later verification ✅
 
-- [ ] **Task 4.1.2**: On-subscribe endpoint implementation
+### 4.3 Challenge Processing Implementation (CRITICAL)
+- [ ] **Task 4.3.1**: Implement actual on-subscribe endpoint
   ```rust
-  // Priority: High | Estimated: 1.5 days
-  pub async fn on_subscribe(
-      State(app_state): State<AppState>,
+  // Priority: Critical | Estimated: 1.5 days
+  pub async fn handle_on_subscribe(
+      State(state): State<AppState>,
       Json(request): Json<OnSubscribeRequest>,
-  ) -> Result<Json<OnSubscribeResponse>, AppError> {
-      // Decrypt challenge and respond
+  ) -> Result<JsonResponse<OnSubscribeResponse>, AppError> {
+      // Decode base64 encrypted challenge
+      let encrypted_challenge = decode_signature(&request.challenge)?;
+      
+      // Generate X25519 shared secret with ONDC public key
+      let shared_secret = key_manager.generate_shared_secret(ondc_public_key).await?;
+      
+      // Decrypt challenge using AES-256-ECB
+      let decrypted_answer = aes_decrypt(&encrypted_challenge, &shared_secret)?;
+      
+      Ok(JsonResponse(OnSubscribeResponse {
+          answer: decrypted_answer,
+      }))
   }
   ```
-  - [ ] Implement `/on_subscribe` POST endpoint
-  - [ ] X25519 shared secret generation
-  - [ ] AES-256-ECB challenge decryption
-  - [ ] Synchronous response handling
-  - [ ] Comprehensive error handling and logging
+  - [ ] Implement X25519 shared secret generation with ONDC public key
+  - [ ] Implement AES-256-ECB challenge decryption
+  - [ ] Add proper error handling for crypto failures
+  - [ ] Add comprehensive logging for debugging
+  - [ ] Validate challenge format and length
+  - [ ] Add timeout handling for crypto operations
 
-### 4.2 Registry Client Implementation
-- [ ] **Task 4.2.1**: Registry HTTP client
+### 4.4 Registry Client Implementation (CRITICAL)
+- [ ] **Task 4.4.1**: Create registry HTTP client
   ```rust
-  // Priority: High | Estimated: 1.5 days
+  // Priority: Critical | Estimated: 1.5 days
   pub struct RegistryClient {
       client: reqwest::Client,
       base_url: String,
-      key_manager: Arc<KeyManager>,
+      key_manager: Arc<KeyManagementService>,
+      config: Arc<ONDCConfig>,
   }
   ```
   - [ ] Implement HTTP client for registry APIs
@@ -202,15 +265,19 @@ All foundational cryptographic components have been successfully implemented:
   - [ ] Implement retry logic with exponential backoff
   - [ ] Add request signing for authenticated endpoints
   - [ ] Handle rate limiting (429 responses)
+  - [ ] Add timeout and connection pooling
 
-- [ ] **Task 4.2.2**: Subscribe API implementation
+- [ ] **Task 4.4.2**: Implement subscribe API
   ```rust
-  // Priority: High | Estimated: 1 day
-  pub async fn subscribe_to_registry(
+  // Priority: Critical | Estimated: 1 day
+  pub async fn subscribe(
       &self,
-      subscriber_info: SubscriberInfo,
-  ) -> Result<SubscribeResponse, RegistryError> {
-      // Implement /subscribe API call
+      payload: SubscriptionPayload,
+  ) -> Result<SubscriptionResponse, RegistryError> {
+      // POST to /subscribe endpoint
+      // Handle different ops_no values (1, 2, 4)
+      // Add payload validation and serialization
+      // Handle various error responses
   }
   ```
   - [ ] Implement `/subscribe` API call
@@ -218,15 +285,18 @@ All foundational cryptographic components have been successfully implemented:
   - [ ] Add payload validation and serialization
   - [ ] Handle various error responses
   - [ ] Add environment-specific URL handling
+  - [ ] Implement proper error mapping
 
-- [ ] **Task 4.2.3**: Lookup API implementation
+- [ ] **Task 4.4.3**: Implement lookup API
   ```rust
   // Priority: Medium | Estimated: 1 day
-  pub async fn lookup_participants(
+  pub async fn lookup(
       &self,
       criteria: LookupCriteria,
   ) -> Result<Vec<Participant>, RegistryError> {
-      // Implement v2.0/lookup with auth
+      // POST to /v2.0/lookup with authorization
+      // Support legacy /lookup endpoint
+      // Add request signing with HTTP signatures
   }
   ```
   - [ ] Implement `/v2.0/lookup` with authorization
@@ -235,16 +305,16 @@ All foundational cryptographic components have been successfully implemented:
   - [ ] Handle paginated responses
   - [ ] Cache lookup results appropriately
 
-## Phase 5: Application Services (Week 8)
+## Phase 5: Onboarding Service Implementation (Week 8) - NEW PRIORITY
 
-### 5.1 Onboarding Service
-- [ ] **Task 5.1.1**: Onboarding orchestration
+### 5.1 Onboarding Service (CRITICAL)
+- [ ] **Task 5.1.1**: Create onboarding orchestration service
   ```rust
-  // Priority: High | Estimated: 2 days
+  // Priority: Critical | Estimated: 2 days
   pub struct OnboardingService {
-      registry_client: RegistryClient,
-      key_manager: KeyManager,
-      config: ONDCConfig,
+      registry_client: Arc<RegistryClient>,
+      key_manager: Arc<KeyManagementService>,
+      config: Arc<ONDCConfig>,
   }
   ```
   - [ ] Orchestrate complete onboarding flow
@@ -252,14 +322,17 @@ All foundational cryptographic components have been successfully implemented:
   - [ ] Handle onboarding state management
   - [ ] Add retry mechanisms for failed steps
   - [ ] Provide detailed progress reporting
+  - [ ] Implement proper error handling and recovery
 
-- [ ] **Task 5.1.2**: Registration status tracking
+- [ ] **Task 5.1.2**: Implement registration status tracking
   ```rust
   // Priority: Medium | Estimated: 1 day
   pub async fn check_registration_status(
       &self,
   ) -> Result<RegistrationStatus, ServiceError> {
       // Check current registration status
+      // Add lookup verification
+      // Track registration across environments
   }
   ```
   - [ ] Implement registration status checking
@@ -268,32 +341,51 @@ All foundational cryptographic components have been successfully implemented:
   - [ ] Provide registration health monitoring
   - [ ] Add alerts for registration issues
 
-### 5.2 Key Management Service
-- [ ] **Task 5.2.1**: Key lifecycle management
+### 5.2 Domain Layer Implementation (DEFERRED FROM PHASE 3)
+- [ ] **Task 5.2.1**: Define core domain entities
   ```rust
   // Priority: Medium | Estimated: 1 day
-  pub struct KeyLifecycleService {
-      key_manager: KeyManager,
-      storage: KeyStorage,
+  pub struct SubscriberInfo {
+      pub subscriber_id: String,
+      pub signing_public_key: String,
+      pub encryption_public_key: String,
+      pub unique_key_id: String,
+      pub status: RegistrationStatus,
+  }
+  
+  pub struct Challenge {
+      pub encrypted_data: Vec<u8>,
+      pub subscriber_id: String,
+      pub timestamp: DateTime<Utc>,
+  }
+  
+  pub struct Registration {
+      pub subscriber_info: SubscriberInfo,
+      pub request_id: String,
+      pub status: RegistrationStatus,
+      pub created_at: DateTime<Utc>,
   }
   ```
-  - [ ] Implement key generation utilities
-  - [ ] Add key validation and testing
-  - [ ] Support key backup and recovery
-  - [ ] Implement key rotation procedures
-  - [ ] Add key expiration monitoring
+  - [ ] Define core domain entities (Subscriber, Challenge, Registration)
+  - [ ] Implement business rules validation
+  - [ ] Add domain services for key operations
+  - [ ] Create value objects with validation
+  - [ ] Document domain boundaries and invariants
 
-## Phase 6: REST API Implementation (Week 9)
+## Phase 6: Administrative API Implementation (Week 9)
 
 ### 6.1 Administrative Endpoints
-- [ ] **Task 6.1.1**: Admin API implementation
+- [ ] **Task 6.1.1**: Implement admin registration endpoint
   ```rust
-  // Priority: Medium | Estimated: 1.5 days
+  // Priority: High | Estimated: 1.5 days
   pub async fn admin_register(
       State(app_state): State<AppState>,
       Json(request): Json<RegisterRequest>,
   ) -> Result<Json<RegisterResponse>, AppError> {
       // Administrative registration endpoint
+      // Validate admin request
+      // Process registration through onboarding service
+      // Return registration status
   }
   ```
   - [ ] Implement administrative registration endpoint
@@ -301,14 +393,17 @@ All foundational cryptographic components have been successfully implemented:
   - [ ] Implement key rotation endpoints
   - [ ] Add status and health monitoring APIs
   - [ ] Secure admin endpoints with authentication
+  - [ ] Add request validation and error handling
 
-- [ ] **Task 6.1.2**: Public API endpoints
+- [ ] **Task 6.1.2**: Implement public API endpoints
   ```rust
   // Priority: Medium | Estimated: 1 day
   pub async fn get_participant_info(
       State(app_state): State<AppState>,
   ) -> Result<Json<ParticipantInfo>, AppError> {
       // Public participant information
+      // Return current registration status
+      // Include public keys and metadata
   }
   ```
   - [ ] Implement public participant info endpoint
@@ -317,15 +412,22 @@ All foundational cryptographic components have been successfully implemented:
   - [ ] Add CORS support for web clients
   - [ ] Document API specifications
 
-### 6.2 Error Handling and Middleware
-- [ ] **Task 6.2.1**: Error handling system
+### 6.2 Error Handling and Middleware Enhancement
+- [ ] **Task 6.2.1**: Enhance error handling system
   ```rust
   // Priority: High | Estimated: 1 day
   #[derive(Error, Debug)]
   pub enum AppError {
       #[error("Registry error: {0}")]
       Registry(#[from] RegistryError),
-      // ... other variants
+      #[error("Crypto error: {0}")]
+      Crypto(#[from] ONDCCryptoError),
+      #[error("Onboarding error: {0}")]
+      Onboarding(#[from] OnboardingError),
+      #[error("Validation error: {0}")]
+      Validation(String),
+      #[error("Configuration error: {0}")]
+      Config(#[from] ConfigError),
   }
   ```
   - [ ] Implement comprehensive error handling
@@ -334,41 +436,34 @@ All foundational cryptographic components have been successfully implemented:
   - [ ] Add user-friendly error messages
   - [ ] Handle different error types appropriately
 
-- [ ] **Task 6.2.2**: Middleware implementation
-  ```rust
-  // Priority: Medium | Estimated: 1 day
-  pub fn create_middleware_stack() -> ServiceBuilder<Stack<...>> {
-      // Build middleware stack
-  }
-  ```
-  - [ ] Implement request/response logging
-  - [ ] Add request tracing and correlation IDs
-  - [ ] Implement rate limiting middleware
-  - [ ] Add security headers middleware
-  - [ ] Create performance monitoring middleware
-
 ## Phase 7: Testing and Quality (Week 10)
 
 ### 7.1 Integration Testing
-- [ ] **Task 7.1.1**: Server integration tests
+- [ ] **Task 7.1.1**: ONDC protocol integration tests
   ```rust
   // Priority: High | Estimated: 2 days
   #[tokio::test]
-  async fn test_onboarding_flow() {
+  async fn test_ondc_onboarding_flow() {
       // Test complete onboarding workflow
+      // Test site verification generation
+      // Test challenge processing
+      // Test registry API interactions
   }
   ```
   - [ ] Test complete onboarding workflow
+  - [ ] Test site verification generation and signing
+  - [ ] Test challenge decryption with X25519 + AES-256-ECB
   - [ ] Test registry API interactions
   - [ ] Test key management operations
   - [ ] Test error handling scenarios
-  - [ ] Add performance and load testing
 
 - [ ] **Task 7.1.2**: Mock registry testing
   ```rust
   // Priority: Medium | Estimated: 1 day
   pub struct MockRegistryServer {
       // Mock server for testing
+      // Simulate ONDC registry responses
+      // Test error scenarios
   }
   ```
   - [ ] Implement mock registry server
@@ -378,39 +473,43 @@ All foundational cryptographic components have been successfully implemented:
   - [ ] Validate retry and recovery mechanisms
 
 ### 7.2 Security Testing
-- [ ] **Task 7.2.1**: Security validation
+- [ ] **Task 7.2.1**: ONDC-specific security validation
   ```rust
   // Priority: High | Estimated: 1 day
   #[test]
-  fn test_key_security() {
-      // Validate key security measures
+  fn test_ondc_crypto_security() {
+      // Validate Ed25519 signing without hashing
+      // Test X25519 key exchange security
+      // Validate AES-256-ECB decryption
+      // Test against timing attacks
   }
   ```
-  - [ ] Test key zeroization and memory safety
-  - [ ] Validate crypto operations security
+  - [ ] Test Ed25519 signing without hashing (ONDC requirement)
+  - [ ] Validate X25519 key exchange security
+  - [ ] Test AES-256-ECB challenge decryption
   - [ ] Test against timing attacks
   - [ ] Add TLS/SSL configuration testing
   - [ ] Perform security audit
 
 ## Phase 8: Documentation and Deployment (Week 11)
 
-### 8.1 Documentation
-- [ ] **Task 8.1.1**: API documentation
-  - [ ] Generate OpenAPI/Swagger specifications
-  - [ ] Add comprehensive endpoint documentation
-  - [ ] Create deployment guides
-  - [ ] Document configuration options
-  - [ ] Add troubleshooting guides
+### 8.1 ONDC-Specific Documentation
+- [ ] **Task 8.1.1**: ONDC integration documentation
+  - [ ] Create ONDC onboarding tutorial
+  - [ ] Document environment setup for staging/preprod/prod
+  - [ ] Add key generation and configuration guides
+  - [ ] Document error handling and troubleshooting
+  - [ ] Create API specifications for ONDC endpoints
 
-- [ ] **Task 8.1.2**: Integration guides
-  - [ ] Create ONDC integration tutorial
-  - [ ] Add environment setup guides
-  - [ ] Document onboarding procedures
-  - [ ] Create migration guides
-  - [ ] Add best practices documentation
+- [ ] **Task 8.1.2**: Deployment guides
+  - [ ] Create Docker containers for ONDC environments
+  - [ ] Add Kubernetes deployment manifests
+  - [ ] Configure monitoring and alerting
+  - [ ] Add log aggregation
+  - [ ] Create operational runbooks
 
-### 8.2 Deployment and Operations
-- [ ] **Task 8.2.1**: Deployment preparation
+### 8.2 Production Readiness
+- [ ] **Task 8.2.1**: Production deployment preparation
   ```dockerfile
   # Priority: Medium | Estimated: 1 day
   FROM rust:1.70 as builder
@@ -418,32 +517,37 @@ All foundational cryptographic components have been successfully implemented:
   COPY . .
   RUN cargo build --release
   ```
-  - [ ] Create Docker containers
+  - [ ] Create production-ready Docker containers
   - [ ] Add Kubernetes deployment manifests
   - [ ] Configure monitoring and alerting
   - [ ] Add log aggregation
   - [ ] Create operational runbooks
 
-## Estimated Timeline
+## Updated Timeline and Critical Path
 
-**Total Duration**: 11 weeks
-**Effort Required**: ~300-350 person-hours
-**Team Size**: 2-3 developers
+**Total Duration**: 11 weeks (unchanged)
+**Critical Path Dependencies**: Updated for ONDC compliance
 
-### Critical Path Dependencies
-1. Phase 1-2 → Phase 3 (Foundation before server implementation)
-2. Phase 3.1-3.2 → Phase 3.3 (Config and keys before server)
-3. Phase 3.3 → Phase 4 (Server before ONDC protocol)
-4. Phase 4 → Phase 5 (Protocol before services)
-5. Phase 5 → Phase 6 (Services before REST API)
-6. Phase 6 → Phase 7 (Implementation before testing)
-7. Phase 7 → Phase 8 (Testing before deployment)
+### Critical Path Dependencies (Updated)
+1. **Phase 4.1-4.3** → **Phase 4.4** (ONDC config → Registry client)
+2. **Phase 4.4** → **Phase 5.1** (Registry client → Onboarding service)
+3. **Phase 5.1** → **Phase 6.1** (Onboarding service → Admin API)
+4. **Phase 6.1** → **Phase 7.1** (Admin API → Testing)
+5. **Phase 7.1** → **Phase 8.1** (Testing → Documentation)
 
-### Risk Mitigation
-- **ONDC Protocol Changes**: Regular validation against official specifications
-- **Registry Integration Issues**: Comprehensive mock testing and error handling
-- **Security Vulnerabilities**: Regular security audits and testing
-- **Performance Issues**: Early load testing and monitoring
-- **Deployment Complexity**: Containerization and automation
+### Risk Mitigation (Updated)
+- **ONDC Protocol Compliance**: Regular validation against official specifications
+- **Crypto Implementation**: Comprehensive testing of Ed25519/X25519/AES operations
+- **Registry Integration**: Mock testing and error handling for all scenarios
+- **Security Vulnerabilities**: Regular security audits focusing on ONDC requirements
+- **Performance Issues**: Load testing with ONDC rate limits in mind
+- **Deployment Complexity**: Containerization and automation for multiple environments
 
-This comprehensive breakdown ensures a production-ready ONDC BAP server that meets all protocol requirements while maintaining high security, performance, and reliability standards.
+### Success Criteria (Updated)
+- ✅ **ONDC Onboarding Compliance**: Server can successfully onboard as Network Participant
+- ✅ **Protocol Implementation**: All required ONDC endpoints implemented correctly
+- ✅ **Crypto Security**: Ed25519/X25519/AES operations meet ONDC standards
+- ✅ **Registry Integration**: Full compliance with ONDC registry APIs
+- ✅ **Production Ready**: Secure, scalable, and maintainable implementation
+
+This updated breakdown ensures the server will be fully compliant with ONDC onboarding requirements and can successfully register as a Network Participant in all environments (staging, pre-prod, production).

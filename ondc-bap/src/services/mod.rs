@@ -1,18 +1,17 @@
-//! Application services for ONDC BAP Server
+//! Services layer for ONDC BAP Server
 
 pub mod key_management_service;
+pub mod site_verification_service;
 
 pub use key_management_service::{
-    KeyManagementService,
-    KeyManagementError,
-    KeyMetadata,
-    KeyType,
-    KeyFormat,
-    KeyRotationPolicy,
-    ExportedKeys,
+    ExportedKeys, KeyFormat, KeyManagementError, KeyManagementService, KeyMetadata,
+    KeyRotationPolicy, KeyType,
+};
+pub use site_verification_service::{
+    RequestIdStats, SiteVerificationError, SiteVerificationService,
 };
 
 // TODO: Implement remaining service modules
 // - Onboarding service
 // - Registry client service
-// - Challenge service 
+// - Challenge service

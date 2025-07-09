@@ -30,14 +30,12 @@
 //! assert_eq!(alice_shared.as_ref(), bob_shared.as_ref());
 //! ```
 
-use x25519_dalek::{
-    EphemeralSecret, StaticSecret, PublicKey as X25519PublicKey,
-    X25519_BASEPOINT_BYTES,
-};
 use ondc_crypto_traits::{
-    ONDCCryptoError, KeyPair, PublicKey,
-    X25519PublicKey as ONDCX25519PublicKey, X25519PrivateKey as ONDCX25519PrivateKey,
-    X25519_PUBLIC_KEY_LENGTH, X25519_PRIVATE_KEY_LENGTH,
+    KeyPair, ONDCCryptoError, PublicKey, X25519PrivateKey as ONDCX25519PrivateKey,
+    X25519PublicKey as ONDCX25519PublicKey, X25519_PRIVATE_KEY_LENGTH, X25519_PUBLIC_KEY_LENGTH,
+};
+use x25519_dalek::{
+    EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret, X25519_BASEPOINT_BYTES,
 };
 use zeroize::{Zeroize, Zeroizing};
 
@@ -234,7 +232,10 @@ impl X25519KeyExchange {
     ///
     /// assert_eq!(alice_shared.as_ref(), bob_shared.as_ref());
     /// ```
-    pub fn diffie_hellman(&self, their_public_key: &[u8]) -> Result<Zeroizing<Vec<u8>>, ONDCCryptoError> {
+    pub fn diffie_hellman(
+        &self,
+        their_public_key: &[u8],
+    ) -> Result<Zeroizing<Vec<u8>>, ONDCCryptoError> {
         // Validate public key length
         if their_public_key.len() != X25519_PUBLIC_KEY_LENGTH {
             return Err(ONDCCryptoError::InvalidKeyLength {
@@ -289,7 +290,7 @@ impl X25519KeyExchange {
     /// use ondc_crypto_algorithms::X25519KeyExchange;
     ///
     /// let bob_public_key = [0u8; 32]; // In practice, this would come from Bob
-    /// let (alice_ephemeral_public, shared_secret) = 
+    /// let (alice_ephemeral_public, shared_secret) =
     ///     X25519KeyExchange::ephemeral_diffie_hellman(&bob_public_key).unwrap();
     /// ```
     pub fn ephemeral_diffie_hellman(
@@ -320,7 +321,10 @@ impl X25519KeyExchange {
         // Perform key exchange (consumes ephemeral_secret)
         let shared_secret = ephemeral_secret.diffie_hellman(&their_public);
 
-        Ok((*ephemeral_public.as_bytes(), Zeroizing::new(shared_secret.as_bytes().to_vec())))
+        Ok((
+            *ephemeral_public.as_bytes(),
+            Zeroizing::new(shared_secret.as_bytes().to_vec()),
+        ))
     }
 
     /// Validate a public key for security.
@@ -398,7 +402,7 @@ impl KeyPair for X25519KeyExchange {
         // For now, we'll use a different approach by storing the public key
         // This is not ideal but works for the trait implementation
         static mut PUBLIC_KEY_CACHE: Option<ONDCX25519PublicKey> = None;
-        
+
         unsafe {
             PUBLIC_KEY_CACHE = Some(self.public_key());
             PUBLIC_KEY_CACHE.as_ref().unwrap()
@@ -417,7 +421,7 @@ impl PublicKey for X25519KeyExchange {
         // For X25519, we can't create a key exchange instance from just a public key
         // This would require a private key. Instead, we'll validate the public key.
         Self::validate_public_key(bytes)?;
-        
+
         // Return a dummy instance for validation purposes
         // In practice, this method might not be used for X25519
         Err(ONDCCryptoError::ConfigError(
@@ -463,8 +467,9 @@ mod tests {
     fn test_x25519_keypair_from_private_key() {
         let original = generate_test_keypair();
         let private_key = original.private_key();
-        
-        let keypair = X25519KeyExchange::new(private_key).expect("Failed to create from private key");
+
+        let keypair =
+            X25519KeyExchange::new(private_key).expect("Failed to create from private key");
         assert_eq!(keypair.public_key(), original.public_key());
     }
 
@@ -486,7 +491,7 @@ mod tests {
     //     let bob = generate_test_keypair();
     //     let bob_public = bob.public_key();
 
-    //     let (alice_ephemeral_public, alice_shared) = 
+    //     let (alice_ephemeral_public, alice_shared) =
     //         X25519KeyExchange::ephemeral_diffie_hellman(&bob_public).expect("Ephemeral DH failed");
 
     //     let bob_shared = bob.diffie_hellman(&alice_ephemeral_public).expect("Bob DH failed");
@@ -505,7 +510,7 @@ mod tests {
     fn test_x25519_invalid_public_key_length() {
         let keypair = generate_test_keypair();
         let invalid_public = [0u8; 16]; // Wrong length
-        
+
         let result = keypair.diffie_hellman(&invalid_public);
         assert!(result.is_err());
     }
@@ -514,8 +519,9 @@ mod tests {
     fn test_x25519_public_key_validation() {
         let keypair = generate_test_keypair();
         let public_key = keypair.public_key();
-        
-        X25519KeyExchange::validate_public_key(&public_key).expect("Valid public key should pass validation");
+
+        X25519KeyExchange::validate_public_key(&public_key)
+            .expect("Valid public key should pass validation");
     }
 
     #[test]
@@ -528,11 +534,11 @@ mod tests {
     #[test]
     fn test_x25519_keypair_trait() {
         let keypair = X25519KeyExchange::generate().expect("Failed to generate keypair");
-        
+
         // Test KeyPair trait methods
         let public_key = keypair.public_key();
         let private_key = keypair.private_key();
-        
+
         assert_eq!(public_key.len(), X25519_PUBLIC_KEY_LENGTH);
         assert_eq!(private_key.len(), X25519_PRIVATE_KEY_LENGTH);
     }
@@ -541,7 +547,7 @@ mod tests {
     fn test_x25519_keypair_clone() {
         let original = generate_test_keypair();
         let cloned = original.clone();
-        
+
         assert_eq!(original.public_key(), cloned.public_key());
         assert_eq!(original.private_key(), cloned.private_key());
     }
@@ -550,7 +556,7 @@ mod tests {
     fn test_x25519_different_keypairs_different_public_keys() {
         let keypair1 = generate_test_keypair();
         let keypair2 = generate_test_keypair();
-        
+
         assert_ne!(keypair1.public_key(), keypair2.public_key());
     }
 
@@ -559,8 +565,8 @@ mod tests {
         // Test with zero public key (weak key)
         let keypair = generate_test_keypair();
         let zero_public_key = [0u8; X25519_PUBLIC_KEY_LENGTH];
-        
+
         let result = keypair.diffie_hellman(&zero_public_key);
         assert!(result.is_err()); // Should fail due to weak key protection
     }
-} 
+}

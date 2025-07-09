@@ -1,32 +1,28 @@
 //! Route definitions for ONDC BAP Server
 
 use axum::{
-    Router,
-    routing::{get, post},
     middleware,
+    routing::{get, post},
+    Router,
 };
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 
-use crate::config::BAPConfig;
-use crate::services::KeyManagementService;
-use super::handlers::{AppState, health_check, admin_register, serve_site_verification, handle_on_subscribe};
+use super::handlers::{
+    admin_register, handle_on_subscribe, health_check, serve_site_verification, AppState,
+};
 use super::middleware::{
-    logging_middleware,
-    cors_middleware,
-    error_handling_middleware,
-    rate_limiting_middleware,
+    cors_middleware, error_handling_middleware, logging_middleware, rate_limiting_middleware,
     security_headers_middleware,
 };
+use crate::config::BAPConfig;
+use crate::services::KeyManagementService;
 
 /// Create the main application router
-pub fn create_router(
-    config: Arc<BAPConfig>,
-    key_manager: Arc<KeyManagementService>,
-) -> Router {
+pub fn create_router(config: Arc<BAPConfig>, key_manager: Arc<KeyManagementService>) -> Router {
     // Create application state
     let app_state = AppState::new(config, key_manager);
-    
+
     // Create router with middleware stack
     Router::new()
         // Health and monitoring routes
@@ -67,7 +63,7 @@ fn admin_routes() -> Router<AppState> {
 async fn metrics_handler() -> String {
     // TODO: Implement actual metrics collection
     // For now, return basic Prometheus metrics
-    
+
     r#"# HELP ondc_bap_requests_total Total number of requests
 # TYPE ondc_bap_requests_total counter
 ondc_bap_requests_total{endpoint="/health"} 0
@@ -84,5 +80,6 @@ ondc_bap_request_duration_seconds_bucket{le="+Inf"} 0
 # HELP ondc_bap_up Server uptime status
 # TYPE ondc_bap_up gauge
 ondc_bap_up 1
-"#.to_string()
-} 
+"#
+    .to_string()
+}
