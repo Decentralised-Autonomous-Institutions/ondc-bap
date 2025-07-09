@@ -1726,7 +1726,9 @@ dependencies = [
 name = "ondc-crypto-algorithms"
 version = "0.1.0"
 dependencies = [
+ "aes",
  "blake2b_simd",
+ "cipher",
  "ed25519-dalek",
  "ondc-crypto-traits",
  "rand 0.8.5",

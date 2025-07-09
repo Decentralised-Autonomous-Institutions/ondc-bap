@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use ondc_crypto_algorithms::prelude::*;
+use ondc_crypto_algorithms::{prelude::*, encrypt_aes256_ecb};
 use ondc_crypto_formats::prelude::*;
 use ondc_crypto_traits::traits::{Hasher, Signer, Verifier};
 use std::io::{self, Read};
@@ -70,6 +70,25 @@ enum Commands {
         #[arg(short, long, value_enum, default_value_t = OutputFormat::Hex)]
         format: OutputFormat,
     },
+
+    /// Generate ONDC test challenge
+    Challenge {
+        /// Challenge data to encrypt (if not provided, uses default test data)
+        #[arg(short, long)]
+        data: Option<String>,
+
+        /// Your X25519 private key in base64 format
+        #[arg(short, long)]
+        private_key: String,
+
+        /// ONDC environment (staging, preprod, production)
+        #[arg(short, long, value_enum, default_value_t = ONDCEnvironment::Staging)]
+        environment: ONDCEnvironment,
+
+        /// Output to JSON format
+        #[arg(short, long)]
+        json: bool,
+    },
 }
 
 #[derive(clap::ValueEnum, Clone)]
@@ -83,6 +102,23 @@ enum OutputFormat {
     Base64,
     Hex,
     Raw,
+}
+
+#[derive(clap::ValueEnum, Clone)]
+enum ONDCEnvironment {
+    Staging,
+    PreProd,
+    Production,
+}
+
+impl std::fmt::Display for ONDCEnvironment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ONDCEnvironment::Staging => write!(f, "staging"),
+            ONDCEnvironment::PreProd => write!(f, "preprod"),
+            ONDCEnvironment::Production => write!(f, "production"),
+        }
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -122,6 +158,14 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Hash { data, format } => {
             hash_data(data, format)?;
+        }
+        Commands::Challenge {
+            data,
+            private_key,
+            environment,
+            json,
+        } => {
+            generate_challenge(data, private_key, environment, json)?;
         }
     }
 
@@ -265,9 +309,90 @@ fn hash_data(data: Option<String>, format: OutputFormat) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn generate_challenge(
+    data: Option<String>,
+    private_key: String,
+    environment: ONDCEnvironment,
+    json: bool,
+) -> anyhow::Result<()> {
+    // Decode private key from base64
+    let private_key_bytes = x25519_private_key_from_base64(&private_key)?;
+    let key_exchange = X25519KeyExchange::new(&private_key_bytes)?;
+
+    // Get ONDC public key for the environment
+    let ondc_public_key = get_ondc_public_key(environment.clone())?;
+
+    // Generate shared secret using X25519 key exchange
+    let shared_secret = key_exchange.diffie_hellman(&ondc_public_key)?;
+
+    // Prepare challenge data
+    let challenge_data = if let Some(data) = data {
+        data.into_bytes()
+    } else {
+        b"This is a test challenge for ONDC".to_vec()
+    };
+
+    // Encrypt challenge using AES-256-ECB with shared secret
+    let encrypted_challenge = encrypt_aes256_ecb(&challenge_data, &shared_secret)?;
+
+    if json {
+        let challenge_output = ChallengeOutput {
+            encrypted_challenge: encode_signature(&encrypted_challenge),
+            environment: environment.to_string(),
+            original_data: String::from_utf8_lossy(&challenge_data).to_string(),
+        };
+        println!("{}", serde_json::to_string_pretty(&challenge_output)?);
+    } else {
+        println!("ONDC Test Challenge Generated:");
+        println!("Encrypted Challenge (Base64):");
+        println!("{}", encode_signature(&encrypted_challenge));
+        println!("Environment: {}", environment);
+        println!("Original Data: {}", String::from_utf8_lossy(&challenge_data));
+    }
+
+    Ok(())
+}
+
+fn get_ondc_public_key(environment: ONDCEnvironment) -> anyhow::Result<[u8; 32]> {
+    let public_key_b64 = match environment {
+        ONDCEnvironment::Staging => "MCowBQYDK2VuAyEAduMuZgmtpjdCuxv+Nc49K0cB6tL/Dj3HZetvVN7ZekM=",
+        ONDCEnvironment::PreProd => "MCowBQYDK2VuAyEAa9Wbpvd9SsrpOZFcynyt/TO3x0Yrqyys4NUGIvyxX2Q=",
+        ONDCEnvironment::Production => "MCowBQYDK2VuAyEAvVEyZY91O2yV8w8/CAwVDAnqIZDJJUPdLUUKwLo3K0M=",
+    };
+
+    let decoded = decode_signature(public_key_b64)?;
+    
+    // Extract raw key from DER format (last 32 bytes)
+    if decoded.len() < 32 {
+        return Err(anyhow::anyhow!("ONDC public key too short"));
+    }
+    
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&decoded[decoded.len() - 32..]);
+    Ok(key)
+}
+
+fn x25519_private_key_from_base64(private_key_b64: &str) -> anyhow::Result<[u8; 32]> {
+    let decoded = decode_signature(private_key_b64)?;
+    if decoded.len() != 32 {
+        return Err(anyhow::anyhow!("X25519 private key must be 32 bytes"));
+    }
+    
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&decoded);
+    Ok(key)
+}
+
+#[derive(serde::Serialize)]
+struct ChallengeOutput {
+    encrypted_challenge: String,
+    environment: String,
+    original_data: String,
+}
+
 fn format_key(key: &[u8], format: &OutputFormat) -> String {
     match format {
-        OutputFormat::Base64 => base64::encode(key),
+        OutputFormat::Base64 => encode_signature(key),
         OutputFormat::Hex => hex::encode(key),
         OutputFormat::Raw => String::from_utf8_lossy(key).to_string(),
     }
@@ -283,7 +408,7 @@ fn format_signature(signature: &[u8], format: &OutputFormat) -> String {
 
 fn format_hash(hash: &[u8], format: &OutputFormat) -> String {
     match format {
-        OutputFormat::Base64 => base64::encode(hash),
+        OutputFormat::Base64 => encode_signature(hash),
         OutputFormat::Hex => hex::encode(hash),
         OutputFormat::Raw => String::from_utf8_lossy(hash).to_string(),
     }
