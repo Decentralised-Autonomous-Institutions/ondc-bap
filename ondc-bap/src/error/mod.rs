@@ -41,3 +41,9 @@ impl From<reqwest::Error> for AppError {
         AppError::Http(err.to_string())
     }
 }
+
+impl From<crate::services::RegistryClientError> for AppError {
+    fn from(err: crate::services::RegistryClientError) -> Self {
+        AppError::Registry(err.to_string())
+    }
+}

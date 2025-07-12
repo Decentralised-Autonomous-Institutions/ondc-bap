@@ -9,19 +9,19 @@ use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 
 use super::handlers::{
-    admin_register, handle_on_subscribe, health_check, serve_site_verification, AppState,
+    admin_register, handle_on_subscribe, health_check, serve_site_verification, subscribe_to_registry, AppState,
 };
 use super::middleware::{
     cors_middleware, error_handling_middleware, logging_middleware, rate_limiting_middleware,
     security_headers_middleware,
 };
-use crate::config::BAPConfig;
+use crate::{config::BAPConfig, services::RegistryClient};
 use crate::services::KeyManagementService;
 
 /// Create the main application router
-pub fn create_router(config: Arc<BAPConfig>, key_manager: Arc<KeyManagementService>) -> Router {
+pub fn create_router(config: Arc<BAPConfig>, key_manager: Arc<KeyManagementService>, registry_client: Arc<RegistryClient>) -> Router {
     // Create application state
-    let app_state = AppState::new(config, key_manager);
+    let app_state = AppState::new(config, key_manager, registry_client);
 
     // Create router with middleware stack
     Router::new()
@@ -55,6 +55,7 @@ pub fn create_router(config: Arc<BAPConfig>, key_manager: Arc<KeyManagementServi
 fn admin_routes() -> Router<AppState> {
     Router::new()
         .route("/register", post(admin_register))
+        .route("/subscribe", post(subscribe_to_registry))
         .route("/config", post(super::handlers::admin::update_config))
         .route("/keys/rotate", post(super::handlers::admin::rotate_keys))
 }

@@ -56,6 +56,56 @@ impl std::str::FromStr for Environment {
     }
 }
 
+/// GST configuration for business entity
+#[derive(Debug, Clone, Deserialize)]
+pub struct GstConfig {
+    pub legal_entity_name: String,
+    pub business_address: String,
+    pub city_code: Vec<String>,
+    pub gst_no: Option<String>,
+}
+
+/// PAN configuration for business entity
+#[derive(Debug, Clone, Deserialize)]
+pub struct PanConfig {
+    pub name_as_per_pan: String,
+    pub pan_no: String,
+    pub date_of_incorporation: String,
+}
+
+/// Business entity configuration
+#[derive(Debug, Clone, Deserialize)]
+pub struct BusinessEntityConfig {
+    pub gst: GstConfig,
+    pub pan: PanConfig,
+    pub name_of_authorised_signatory: String,
+    pub address_of_authorised_signatory: String,
+    pub email_id: String,
+    pub mobile_no: u64,
+    pub country: String,
+}
+
+/// Network participant configuration
+#[derive(Debug, Clone, Deserialize)]
+pub struct NetworkParticipantConfig {
+    pub subscriber_url: String,
+    pub domain: String,
+    pub participant_type: ParticipantType,
+    pub msn: bool,
+    pub city_code: Vec<String>,
+}
+
+/// Participant type enumeration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum ParticipantType {
+    #[serde(rename = "buyerApp")]
+    BuyerApp,
+    #[serde(rename = "sellerApp")]
+    SellerApp,
+    #[serde(rename = "gateway")]
+    Gateway,
+}
+
 /// ONDC configuration
 #[derive(Debug, Clone, Deserialize)]
 pub struct ONDCConfig {
@@ -65,6 +115,8 @@ pub struct ONDCConfig {
     pub callback_url: String,
     pub request_timeout_secs: u64,
     pub max_retries: usize,
+    pub business_entity: BusinessEntityConfig,
+    pub network_participants: Option<Vec<NetworkParticipantConfig>>,
 }
 
 impl ONDCConfig {
@@ -77,6 +129,25 @@ impl ONDCConfig {
             callback_url: "/".to_string(),
             request_timeout_secs: 30,
             max_retries: 3,
+            business_entity: BusinessEntityConfig {
+                gst: GstConfig {
+                    legal_entity_name: "Default Entity".to_string(),
+                    business_address: "Default Address".to_string(),
+                    city_code: vec!["std:080".to_string()],
+                    gst_no: None,
+                },
+                pan: PanConfig {
+                    name_as_per_pan: "Default Entity".to_string(),
+                    pan_no: "AAAAA0000A".to_string(),
+                    date_of_incorporation: "01/01/2020".to_string(),
+                },
+                name_of_authorised_signatory: "Default Signatory".to_string(),
+                address_of_authorised_signatory: "Default Address".to_string(),
+                email_id: "default@example.com".to_string(),
+                mobile_no: 9999999999,
+                country: "IND".to_string(),
+            },
+            network_participants: None,
         }
     }
 
@@ -111,6 +182,25 @@ impl Default for ONDCConfig {
             callback_url: "/".to_string(),
             request_timeout_secs: 30,
             max_retries: 3,
+            business_entity: BusinessEntityConfig {
+                gst: GstConfig {
+                    legal_entity_name: "Example Entity".to_string(),
+                    business_address: "Example Address".to_string(),
+                    city_code: vec!["std:080".to_string()],
+                    gst_no: None,
+                },
+                pan: PanConfig {
+                    name_as_per_pan: "Example Entity".to_string(),
+                    pan_no: "AAAAA0000A".to_string(),
+                    date_of_incorporation: "01/01/2020".to_string(),
+                },
+                name_of_authorised_signatory: "Example Signatory".to_string(),
+                address_of_authorised_signatory: "Example Address".to_string(),
+                email_id: "example@example.com".to_string(),
+                mobile_no: 9999999999,
+                country: "IND".to_string(),
+            },
+            network_participants: None,
         }
     }
 }
@@ -158,6 +248,8 @@ mod tests {
         assert_eq!(config.environment, Environment::Staging);
         assert_eq!(config.subscriber_id, "example.com");
         assert_eq!(config.request_timeout_secs, 30);
+        assert_eq!(config.business_entity.country, "IND");
+        assert_eq!(config.network_participants.is_none(), true);
     }
 
     #[test]

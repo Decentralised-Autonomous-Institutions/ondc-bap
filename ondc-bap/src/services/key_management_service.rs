@@ -15,7 +15,7 @@ use crate::config::app_config::KeyConfig;
 use crate::config::ConfigError;
 use ondc_crypto_algorithms::{Ed25519Signer, X25519KeyExchange};
 use ondc_crypto_formats::{decode_signature, encode_signature};
-use ondc_crypto_traits::{KeyPair, ONDCCryptoError, Signer};
+use ondc_crypto_traits::{ONDCCryptoError, Signer};
 
 /// Key management service error types
 #[derive(Debug, thiserror::Error)]
@@ -104,7 +104,6 @@ pub struct KeyManagementService {
     current_keys: Arc<tokio::sync::RwLock<KeyPairWithMetadata>>,
     backup_keys: Arc<tokio::sync::RwLock<Vec<KeyPairWithMetadata>>>,
     rotation_policy: KeyRotationPolicy,
-    config: Arc<KeyConfig>,
 }
 
 impl KeyManagementService {
@@ -123,7 +122,6 @@ impl KeyManagementService {
             current_keys: Arc::new(tokio::sync::RwLock::new(key_pair)),
             backup_keys: Arc::new(tokio::sync::RwLock::new(Vec::new())),
             rotation_policy: KeyRotationPolicy::default(),
-            config: Arc::new(config),
         };
 
         info!("Key management service initialized successfully");

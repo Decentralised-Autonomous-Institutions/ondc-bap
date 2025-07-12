@@ -19,6 +19,33 @@ callback_url = "/"
 request_timeout_secs = 30
 max_retries = 3
 
+# Business entity configuration
+[ondc.business_entity]
+name_of_authorised_signatory = "Test Signatory"
+address_of_authorised_signatory = "Test Address, Test City, Test State 123456"
+email_id = "mrunalpendem123@gmail.com"
+mobile_no = 8309084438
+country = "IND"
+
+[ondc.business_entity.gst]
+legal_entity_name = "LootAI"
+business_address = "Test Business Address, Test City, Test State 123456"
+city_code = ["std:080"]
+gst_no = "00AAAAA0000A1Z5"
+
+[ondc.business_entity.pan]
+name_as_per_pan = "PENDEM SAI SIVA SURYA MRUNAL"
+pan_no = "GONPM8506J"
+date_of_incorporation = "01/01/2025"
+
+# Network participant configuration
+[[ondc.network_participants]]
+subscriber_url = "/"
+domain = "nic2004:52110"
+participant_type = "buyerApp"
+msn = false
+city_code = ["std:080"]
+
 [keys]
 # These should be replaced with actual keys in production
 signing_private_key = "iblY/8ruRp43aGEjuCtJrs5QyAhaHroQIaUgWKNScco="
