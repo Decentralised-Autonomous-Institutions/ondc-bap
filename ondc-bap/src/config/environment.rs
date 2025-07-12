@@ -1,6 +1,6 @@
 //! Environment configuration loading utilities
 
-use crate::config::{BAPConfig, ConfigError};
+use crate::config::{ondc_config::{BusinessEntityConfig, GstConfig, PanConfig}, BAPConfig, ConfigError};
 
 /// Load configuration from environment
 pub fn load_config() -> Result<BAPConfig, ConfigError> {
@@ -35,6 +35,25 @@ pub fn create_test_config() -> BAPConfig {
             callback_url: "/".to_string(),
             request_timeout_secs: 30,
             max_retries: 3,
+            network_participants: None,
+            business_entity: BusinessEntityConfig {
+                gst: GstConfig {
+                    legal_entity_name: "Default Entity".to_string(),
+                    business_address: "Default Address".to_string(),
+                    city_code: vec!["std:080".to_string()],
+                    gst_no: None,
+                },
+                pan: PanConfig {
+                    name_as_per_pan: "Default Entity".to_string(),
+                    pan_no: "AAAAA0000A".to_string(),
+                    date_of_incorporation: "01/01/2020".to_string(),
+                },
+                name_of_authorised_signatory: "Default Signatory".to_string(),
+                address_of_authorised_signatory: "Default Address".to_string(),
+                email_id: "default@example.com".to_string(),
+                mobile_no: 9999999999,
+                country: "IND".to_string(),
+            },
         },
         keys: KeyConfig {
             signing_private_key: generate_test_signing_key(),

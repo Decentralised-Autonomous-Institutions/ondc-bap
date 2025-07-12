@@ -7,13 +7,14 @@ use tracing::{error, info};
 
 use super::routes::create_router;
 use crate::config::load_config;
-use crate::services::KeyManagementService;
+use crate::services::{KeyManagementService, RegistryClient};
 use crate::{BAPConfig, Result};
 
 /// Main BAP server implementation
 pub struct BAPServer {
     config: Arc<BAPConfig>,
     key_manager: Arc<KeyManagementService>,
+    registry_client: Arc<RegistryClient>,
 }
 
 impl BAPServer {
@@ -29,9 +30,13 @@ impl BAPServer {
         );
         info!("Key management service initialized successfully");
 
+        let registry_client = Arc::new(RegistryClient::new(key_manager.clone(), config.ondc.clone())?);
+        info!("Registry client initialized successfully");
+
         Ok(Self {
             config,
             key_manager,
+            registry_client,
         })
     }
 
@@ -49,7 +54,7 @@ impl BAPServer {
         info!("Starting BAP Server on {}", addr);
 
         // Create router
-        let app = create_router(self.config.clone(), self.key_manager.clone());
+        let app = create_router(self.config.clone(), self.key_manager.clone(), self.registry_client.clone());
 
         // Start server with graceful shutdown
         let listener = tokio::net::TcpListener::bind(addr)
@@ -124,10 +129,14 @@ mod tests {
         let key_manager = KeyManagementService::new(test_config.keys.clone())
             .await
             .unwrap();
+        let key_manager_arc = Arc::new(key_manager);
+        let registry_client = RegistryClient::new(key_manager_arc.clone(), test_config.ondc.clone())
+            .unwrap();
 
         let _server = BAPServer {
             config: Arc::new(test_config),
-            key_manager: Arc::new(key_manager),
+            key_manager: key_manager_arc,
+            registry_client: Arc::new(registry_client),
         };
     }
 }

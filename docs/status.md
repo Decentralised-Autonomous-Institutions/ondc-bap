@@ -292,12 +292,12 @@ All foundational cryptographic components have been successfully implemented:
       // Handle various error responses
   }
   ```
-  - [ ] Implement `/subscribe` API call
-  - [ ] Support different ops_no values (1, 2, 4)
-  - [ ] Add payload validation and serialization
-  - [ ] Handle various error responses
-  - [ ] Add environment-specific URL handling
-  - [ ] Implement proper error mapping
+
+  - [x] Support different ops_no values (1, 2, 4)
+  - [x] Add payload validation and serialization
+  - [x] Handle various error responses
+  - [x] Add environment-specific URL handling
+  - [x] Implement proper error mapping
 
 - [ ] **Task 4.4.3**: Implement lookup API
   ```rust
