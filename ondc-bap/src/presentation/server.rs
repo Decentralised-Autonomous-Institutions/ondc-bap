@@ -4,10 +4,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::signal;
 use tracing::{error, info, warn};
-use rustls::{Certificate, PrivateKey, ServerConfig};
-use rustls_pemfile::{certs, pkcs8_private_keys};
-use std::fs::File;
-use std::io::BufReader;
+use axum_server::tls_rustls::RustlsConfig;
 
 use super::routes::create_router;
 use crate::config::load_config;
@@ -94,21 +91,23 @@ impl BAPServer {
 
     /// Run HTTPS server with TLS support
     async fn run_https_server(&self, addr: SocketAddr, app: axum::Router, cert_path: &str, key_path: &str) -> Result<()> {
-        let tls_config = self.load_tls_config(cert_path, key_path)?;
-        
-        let listener = tokio::net::TcpListener::bind(addr)
-            .await
-            .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
+        let tls_config = self.load_rustls_config(cert_path, key_path).await?;
 
         info!("HTTPS Server listening on {}", addr);
 
-        let graceful = axum_server::bind_rustls(addr, tls_config)
-            .serve(app.into_make_service())
-            .with_graceful_shutdown(shutdown_signal());
-
-        if let Err(e) = graceful.await {
-            error!("Server error: {}", e);
-            return Err(crate::error::AppError::Internal(e.to_string()));
+        let server = axum_server::bind_rustls(addr, tls_config);
+        let graceful = server.serve(app.into_make_service());
+        
+        tokio::select! {
+            result = graceful => {
+                if let Err(e) = result {
+                    error!("Server error: {}", e);
+                    return Err(crate::error::AppError::Internal(e.to_string()));
+                }
+            }
+            _ = shutdown_signal() => {
+                info!("Shutdown signal received, server shutting down gracefully");
+            }
         }
 
         info!("Server shutdown complete");
@@ -116,35 +115,16 @@ impl BAPServer {
     }
 
     /// Load TLS configuration from certificate and key files
-    fn load_tls_config(&self, cert_path: &str, key_path: &str) -> Result<ServerConfig> {
-        // Load certificates
-        let cert_file = File::open(cert_path)
-            .map_err(|e| crate::error::AppError::Internal(format!("Failed to open certificate file: {}", e)))?;
-        let mut cert_reader = BufReader::new(cert_file);
-        let cert_chain = certs(&mut cert_reader)
-            .map_err(|e| crate::error::AppError::Internal(format!("Failed to parse certificates: {}", e)))?
-            .into_iter()
-            .map(Certificate)
-            .collect();
+    async fn load_rustls_config(&self, cert_path: &str, key_path: &str) -> Result<RustlsConfig> {
+        // Read certificate and key files as bytes
+        let cert_pem = std::fs::read(cert_path)
+            .map_err(|e| crate::error::AppError::Internal(format!("Failed to read certificate file: {}", e)))?;
+        let key_pem = std::fs::read(key_path)
+            .map_err(|e| crate::error::AppError::Internal(format!("Failed to read private key file: {}", e)))?;
 
-        // Load private key
-        let key_file = File::open(key_path)
-            .map_err(|e| crate::error::AppError::Internal(format!("Failed to open private key file: {}", e)))?;
-        let mut key_reader = BufReader::new(key_file);
-        let mut keys = pkcs8_private_keys(&mut key_reader)
-            .map_err(|e| crate::error::AppError::Internal(format!("Failed to parse private key: {}", e)))?;
-
-        if keys.is_empty() {
-            return Err(crate::error::AppError::Internal("No private key found".to_string()));
-        }
-
-        let key = PrivateKey(keys.remove(0));
-
-        // Create TLS configuration
-        let config = ServerConfig::builder()
-            .with_safe_defaults()
-            .with_no_client_auth()
-            .with_single_cert(cert_chain, key)
+        // Create TLS configuration using axum-server's RustlsConfig
+        let config = RustlsConfig::from_pem(cert_pem, key_pem)
+            .await
             .map_err(|e| crate::error::AppError::Internal(format!("Failed to create TLS config: {}", e)))?;
 
         Ok(config)
