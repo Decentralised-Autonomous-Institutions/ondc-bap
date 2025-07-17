@@ -202,6 +202,10 @@ impl RegistryClient {
         // Generate request ID
         let request_id = uuid::Uuid::new_v4().to_string();
         let timestamp = Utc::now().to_rfc3339();
+        
+        // Set key validity period - valid for 1 week from now
+        let valid_from = Utc::now().to_rfc3339();
+        let valid_until = (Utc::now() + chrono::Duration::weeks(1)).to_rfc3339();
 
         // Get public keys from key manager
         let signing_public_key = self.key_manager.get_signing_public_key().await
@@ -241,8 +245,8 @@ impl RegistryClient {
                     key_pair: KeyPairInfo {
                         signing_public_key,
                         encryption_public_key,
-                        valid_from: timestamp.clone(),
-                        valid_until: timestamp,
+                        valid_from,
+                        valid_until,
                     },
                 },
                 network_participant: vec![
@@ -444,6 +448,7 @@ impl RegistryClient {
         &self,
         response: &SubscribeResponse,
     ) -> Result<(), RegistryClientError> {
+        // Print response message
         if response.message.ack.status == "ACK" {
             if let (None, None, None, None) = (
                 &response.error.error_type,
@@ -458,6 +463,8 @@ impl RegistryClient {
                 ))
             }
         } else {
+            error!("Subscription failed with error code: {:?}", response.error.code);
+            error!("Subscription failed with error message: {:?}", response.error.message);
             Err(RegistryClientError::InvalidResponse(format!(
                 "Subscription failed with status: {}",
                 response.message.ack.status
