@@ -13,7 +13,7 @@ max_connections = 1000
 
 [ondc]
 environment = "staging"
-registry_base_url = "https://network.lootai.co"
+registry_base_url = "https://staging.registry.ondc.org"
 subscriber_id = "network.lootai.co"
 callback_url = "/"
 request_timeout_secs = 30

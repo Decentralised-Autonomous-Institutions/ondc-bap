@@ -378,7 +378,7 @@ impl RegistryClient {
 
         // Send the request
         let url = format!("{}/subscribe", self.base_url);
-        
+
         let response = self.client
             .post(&url)
             .header("Content-Type", "application/json")
