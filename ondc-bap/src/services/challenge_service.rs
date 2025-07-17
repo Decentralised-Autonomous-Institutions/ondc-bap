@@ -90,12 +90,31 @@ impl ChallengeService {
         let shared_secret = self.generate_shared_secret().await?;
 
         // Decrypt challenge using AES-256-ECB
-        let decrypted_bytes = decrypt_aes256_ecb(&encrypted_challenge, &shared_secret)
+        let mut decrypted_bytes = decrypt_aes256_ecb(&encrypted_challenge, &shared_secret)
             .map_err(|e| ChallengeError::DecryptionError(format!("AES decryption failed: {}", e)))?;
+
+        // Remove PKCS#7 padding
+        if let Some(&padding_len) = decrypted_bytes.last() {
+            if padding_len > 0 && padding_len <= 16 {
+                let padding_start = decrypted_bytes.len().saturating_sub(padding_len as usize);
+                let padding_bytes = &decrypted_bytes[padding_start..];
+                
+                // Verify padding is correct (all bytes should equal padding_len)
+                if padding_bytes.iter().all(|&b| b == padding_len) {
+                    decrypted_bytes.truncate(padding_start);
+                    info!("Removed {} padding bytes", padding_len);
+                } else {
+                    info!("Invalid padding detected, keeping original data");
+                }
+            }
+        }
 
         // Convert decrypted bytes to string
         let answer = String::from_utf8(decrypted_bytes)
             .map_err(|e| ChallengeError::DecryptionError(format!("Invalid UTF-8 in decrypted challenge: {}", e)))?;
+
+        // Trim any whitespace that might be present
+        let answer = answer.trim().to_string();
 
         info!("Challenge processed successfully");
         Ok(OnSubscribeResponse { answer })
