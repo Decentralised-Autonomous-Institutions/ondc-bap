@@ -7,4 +7,4 @@ docs/example-node-implementation.xml
 *.keys.json
 keys.json
 
-logs/
+logs/*

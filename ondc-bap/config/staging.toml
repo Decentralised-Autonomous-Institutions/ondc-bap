@@ -2,7 +2,7 @@
 
 [server]
 host = "0.0.0.0"
-port = 8080
+port = 8443
 request_timeout_secs = 30
 max_connections = 1000
 
