@@ -52,7 +52,9 @@ impl BAPConfig {
     pub fn load() -> Result<Self, ConfigError> {
         let environment = std::env::var("ONDC_ENV").unwrap_or_else(|_| "staging".to_string());
 
-        let config_path = format!("config/{}.toml", environment);
+        let cwd = std::env::current_dir().unwrap();
+
+        let config_path = format!("{}/ondc-bap/config/{}.toml", cwd.display(), environment);
 
         // Check if file exists
         if !std::path::Path::new(&config_path).exists() {
