@@ -58,8 +58,8 @@ impl BAPServer {
         let app = create_router(self.config.clone(), self.key_manager.clone(), self.registry_client.clone());
 
         // Check if TLS certificates are available
-        let cert_path = "/etc/letsencrypt/live/network.lootai.co/fullchain.pem";
-        let key_path = "/etc/letsencrypt/live/network.lootai.co/privkey.pem";
+        let cert_path = "/opt/ssl-certs/fullchain.pem";
+        let key_path = "/opt/ssl-certs/privkey.pem";
         
         if std::path::Path::new(cert_path).exists() && std::path::Path::new(key_path).exists() {
             info!("TLS certificates found, starting HTTPS server");
