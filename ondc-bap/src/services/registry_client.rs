@@ -200,11 +200,14 @@ impl RegistryClient {
 
         // Generate request ID
         let request_id = uuid::Uuid::new_v4().to_string();
-        let timestamp = Utc::now().to_rfc3339();
+        let timestamp = Utc::now().format("%Y-%m-%dT%H:%M:%S.%3fZ").to_string();
         
         // Set key validity period - valid for 1 week from now
-        let valid_from = Utc::now().to_rfc3339();
-        let valid_until = (Utc::now() + chrono::Duration::weeks(1)).to_rfc3339();
+        let now = Utc::now();
+        // Format timestamps to match ONDC expected format (Z instead of +00:00, millisecond precision)
+        let valid_from = now.format("%Y-%m-%dT%H:%M:%S.%3fZ").to_string();
+        let valid_until = (now + chrono::Duration::weeks(1)).format("%Y-%m-%dT%H:%M:%S.%3fZ").to_string();
+        
 
         // Get public keys from key manager
         let signing_public_key = self.key_manager.get_signing_public_key().await
