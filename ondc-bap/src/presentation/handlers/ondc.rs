@@ -5,7 +5,7 @@ use axum::{
     http::StatusCode,
     response::{Html, Json as JsonResponse},
 };
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 
 use super::AppState;
 use crate::services::{OnSubscribeRequest, OnSubscribeResponse};
@@ -18,18 +18,45 @@ pub async fn serve_site_verification(
 ) -> Result<Html<String>, StatusCode> {
     info!("Site verification page requested");
 
-    match state
-        .site_verification_service
-        .generate_site_verification()
-        .await
-    {
-        Ok(html_content) => {
-            info!("Site verification page generated successfully");
-            Ok(Html(html_content))
+    // Get the stored request_id from the subscription call
+    let stored_request_id = state.site_verification_service.get_current_request_id().await;
+    
+    match stored_request_id {
+        Some(request_id) => {
+            info!("Using stored request_id for site verification: {}", request_id);
+            // Generate site verification with the stored request_id
+            match state
+                .site_verification_service
+                .generate_site_verification_with_request_id(Some(&request_id))
+                .await
+            {
+                Ok(html_content) => {
+                    info!("Site verification page generated successfully with stored request_id");
+                    Ok(Html(html_content))
+                }
+                Err(e) => {
+                    error!("Failed to generate site verification: {}", e);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            }
         }
-        Err(e) => {
-            error!("Failed to generate site verification: {}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        None => {
+            warn!("No stored request_id found, generating new one");
+            // Fallback to generating a new request_id
+            match state
+                .site_verification_service
+                .generate_site_verification()
+                .await
+            {
+                Ok(html_content) => {
+                    info!("Site verification page generated successfully");
+                    Ok(Html(html_content))
+                }
+                Err(e) => {
+                    error!("Failed to generate site verification: {}", e);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            }
         }
     }
 }

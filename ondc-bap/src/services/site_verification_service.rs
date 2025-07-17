@@ -6,9 +6,8 @@
 //! - Generate HTML verification pages
 //! - Store request IDs for later verification
 
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
@@ -41,20 +40,12 @@ pub enum SiteVerificationError {
     RequestIdExpired(String),
 }
 
-/// Stored request ID with metadata
-#[derive(Debug, Clone)]
-struct StoredRequestId {
-    request_id: String,
-    signed_content: String,
-    created_at: Instant,
-    expires_at: Instant,
-}
 
 /// Site verification service
 pub struct SiteVerificationService {
     key_manager: Arc<KeyManagementService>,
     config: Arc<BAPConfig>,
-    request_ids: Arc<RwLock<HashMap<String, StoredRequestId>>>,
+    request_ids: Arc<RwLock<Option<String>>>,
     ttl: Duration,
 }
 
@@ -64,7 +55,7 @@ impl SiteVerificationService {
         Self {
             key_manager,
             config,
-            request_ids: Arc::new(RwLock::new(HashMap::new())),
+            request_ids: Arc::new(RwLock::new(None)),
             ttl: Duration::from_secs(3600), // 1 hour TTL
         }
     }
@@ -72,16 +63,31 @@ impl SiteVerificationService {
     /// Generate site verification HTML content
     #[instrument(skip(self))]
     pub async fn generate_site_verification(&self) -> Result<String, SiteVerificationError> {
+        self.generate_site_verification_with_request_id(None).await
+    }
+
+    /// Generate site verification HTML content with optional request ID
+    #[instrument(skip(self))]
+    pub async fn generate_site_verification_with_request_id(&self, request_id: Option<&str>) -> Result<String, SiteVerificationError> {
         info!("Generating site verification content");
 
-        // Generate unique request ID
-        let request_id = self.generate_request_id()?;
+        // Use provided request ID or generate a new one
+        let request_id = match request_id {
+            Some(id) => {
+                info!("Using provided request_id: {}", id);
+                id.to_string()
+            }
+            None => {
+                let id = self.generate_request_id()?;
+                info!("Generated new request_id: {}", id);
+                // Store the request ID
+                self.store_request_id(&id).await;
+                id
+            }
+        };
 
         // Sign the request ID using Ed25519 without hashing
         let signed_content = self.sign_request_id(&request_id).await?;
-
-        // Store the request ID for later verification
-        self.store_request_id(&request_id, &signed_content).await;
 
         // Generate HTML content
         let html_content = self.generate_html_template(&signed_content)?;
@@ -93,67 +99,42 @@ impl SiteVerificationService {
         Ok(html_content)
     }
 
+    /// Get the current stored request ID
+    #[instrument(skip(self))]
+    pub async fn get_current_request_id(&self) -> Option<String> {
+        let request_ids = self.request_ids.read().await;
+        request_ids.clone()
+    }
+
     /// Verify a request ID exists and is valid
     #[instrument(skip(self), fields(request_id = %request_id))]
     pub async fn verify_request_id(&self, request_id: &str) -> Result<bool, SiteVerificationError> {
-        let request_ids = self.request_ids.read().await;
+        let stored_request_id = self.request_ids.read().await;
 
-        if let Some(stored) = request_ids.get(request_id) {
-            if Instant::now() < stored.expires_at {
+        if let Some(stored) = stored_request_id.as_ref() {
+            if stored == request_id {
                 info!("Request ID verified successfully: {}", request_id);
                 Ok(true)
             } else {
-                warn!("Request ID expired: {}", request_id);
-                Err(SiteVerificationError::RequestIdExpired(
+                warn!("Request ID mismatch: expected {}, got {}", stored, request_id);
+                Err(SiteVerificationError::RequestIdNotFound(
                     request_id.to_string(),
                 ))
             }
         } else {
-            warn!("Request ID not found: {}", request_id);
+            warn!("No request ID stored");
             Err(SiteVerificationError::RequestIdNotFound(
                 request_id.to_string(),
             ))
         }
     }
 
-    /// Get stored request ID metadata
-    #[instrument(skip(self), fields(request_id = %request_id))]
-    pub async fn get_request_id_metadata(
-        &self,
-        request_id: &str,
-    ) -> Result<StoredRequestId, SiteVerificationError> {
-        let request_ids = self.request_ids.read().await;
-
-        if let Some(stored) = request_ids.get(request_id) {
-            if Instant::now() < stored.expires_at {
-                Ok(stored.clone())
-            } else {
-                Err(SiteVerificationError::RequestIdExpired(
-                    request_id.to_string(),
-                ))
-            }
-        } else {
-            Err(SiteVerificationError::RequestIdNotFound(
-                request_id.to_string(),
-            ))
-        }
-    }
-
-    /// Clean up expired request IDs
+    /// Clear the stored request ID
     #[instrument(skip(self))]
-    pub async fn cleanup_expired_request_ids(&self) -> Result<usize, SiteVerificationError> {
+    pub async fn clear_request_id(&self) {
         let mut request_ids = self.request_ids.write().await;
-        let now = Instant::now();
-        let initial_count = request_ids.len();
-
-        request_ids.retain(|_, stored| now < stored.expires_at);
-
-        let removed_count = initial_count - request_ids.len();
-        if removed_count > 0 {
-            info!("Cleaned up {} expired request IDs", removed_count);
-        }
-
-        Ok(removed_count)
+        *request_ids = None;
+        info!("Cleared stored request ID");
     }
 
     /// Generate a unique request ID
@@ -187,26 +168,13 @@ impl SiteVerificationService {
         Ok(signed_content)
     }
 
-    /// Store a request ID with metadata
-    #[instrument(skip(self, request_id, signed_content))]
-    async fn store_request_id(&self, request_id: &str, signed_content: &str) {
-        let now = Instant::now();
-        let expires_at = now + self.ttl;
-
-        let stored = StoredRequestId {
-            request_id: request_id.to_string(),
-            signed_content: signed_content.to_string(),
-            created_at: now,
-            expires_at,
-        };
-
+    /// Store a request ID
+    #[instrument(skip(self, request_id))]
+    pub async fn store_request_id(&self, request_id: &str) {
         let mut request_ids = self.request_ids.write().await;
-        request_ids.insert(request_id.to_string(), stored);
+        *request_ids = Some(request_id.to_string());
 
-        info!(
-            "Stored request ID: {} (expires at {:?})",
-            request_id, expires_at
-        );
+        info!("Stored request ID: {}", request_id);
     }
 
     /// Generate HTML template with signed content
@@ -251,22 +219,15 @@ impl SiteVerificationService {
         self.ttl
     }
 
-    /// Get statistics about stored request IDs
+    /// Get statistics about stored request ID
     pub async fn get_stats(&self) -> RequestIdStats {
         let request_ids = self.request_ids.read().await;
-        let now = Instant::now();
-
-        let total_count = request_ids.len();
-        let expired_count = request_ids
-            .values()
-            .filter(|stored| now >= stored.expires_at)
-            .count();
-        let active_count = total_count - expired_count;
+        let active_count = if request_ids.is_some() { 1 } else { 0 };
 
         RequestIdStats {
-            total_count,
+            total_count: active_count,
             active_count,
-            expired_count,
+            expired_count: 0,
             ttl_seconds: self.ttl.as_secs(),
         }
     }
@@ -379,33 +340,20 @@ mod tests {
 
         // Generate and store a request ID
         let request_id = service.generate_request_id().unwrap();
-        let signed_content = "test_signature".to_string();
-
+        
         // Store manually for testing
         {
             let mut request_ids = service.request_ids.write().await;
-            let now = Instant::now();
-            let stored = StoredRequestId {
-                request_id: request_id.clone(),
-                signed_content: signed_content.clone(),
-                created_at: now,
-                expires_at: now + Duration::from_secs(3600),
-            };
-            request_ids.insert(request_id.clone(), stored);
+            *request_ids = Some(request_id.clone());
         }
 
-        // Verify the request ID
-        let is_valid = service.verify_request_id(&request_id).await.unwrap();
-        assert!(is_valid);
-
-        // Get metadata
-        let metadata = service.get_request_id_metadata(&request_id).await.unwrap();
-        assert_eq!(metadata.request_id, request_id);
-        assert_eq!(metadata.signed_content, signed_content);
+        // Get the current request ID
+        let stored_request_id = service.get_current_request_id().await;
+        assert_eq!(stored_request_id, Some(request_id));
     }
 
     #[tokio::test]
-    async fn test_stats_collection() {
+    async fn test_request_id_retrieval() {
         let config = create_test_config();
         let key_manager = Arc::new(
             KeyManagementService::new(config.keys.clone())
@@ -416,10 +364,19 @@ mod tests {
 
         let service = SiteVerificationService::new(key_manager, config);
 
-        let stats = service.get_stats().await;
-        assert_eq!(stats.total_count, 0);
-        assert_eq!(stats.active_count, 0);
-        assert_eq!(stats.expired_count, 0);
-        assert_eq!(stats.ttl_seconds, 3600);
+        // Initially no request ID
+        let stored_request_id = service.get_current_request_id().await;
+        assert_eq!(stored_request_id, None);
+
+        // Generate and store a request ID
+        let request_id = service.generate_request_id().unwrap();
+        {
+            let mut request_ids = service.request_ids.write().await;
+            *request_ids = Some(request_id.clone());
+        }
+
+        // Should now return the stored ID
+        let stored_request_id = service.get_current_request_id().await;
+        assert_eq!(stored_request_id, Some(request_id));
     }
 }

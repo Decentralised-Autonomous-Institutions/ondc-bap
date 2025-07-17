@@ -36,9 +36,9 @@ pub struct AdminStatusResponse {
 ///
 /// This endpoint allows administrators to initiate ONDC network participant registration
 /// by calling the registry subscribe API with the specified operation number.
-#[instrument(skip(state, request), fields(ops_no = request.ops_no))]
+#[instrument(skip(_state, request), fields(ops_no = request.ops_no))]
 pub async fn admin_register(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Json(request): Json<AdminRegistrationRequest>,
 ) -> Result<JsonResponse<AdminRegistrationResponse>, StatusCode> {
     info!("Processing admin registration request (ops_no: {})", request.ops_no);
@@ -63,9 +63,9 @@ pub async fn admin_register(
 /// Administrative status endpoint
 ///
 /// This endpoint provides status information about the BAP server and its registration status.
-#[instrument(skip(state))]
+#[instrument(skip(_state))]
 pub async fn admin_status(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
 ) -> Result<JsonResponse<AdminStatusResponse>, StatusCode> {
     info!("Admin status requested");
 
@@ -236,8 +236,15 @@ pub async fn subscribe_to_registry(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    // Call the registry client subscribe method
-    match state.registry_client.subscribe(request.ops_no).await {
+    // Generate a new request_id for this subscription
+    let request_id = uuid::Uuid::new_v4().to_string();
+    info!("Generated request_id for subscription: {}", request_id);
+    
+    // Store the request_id in site verification service so it can be used when site verification is accessed
+    state.site_verification_service.store_request_id(&request_id).await;
+    
+    // Call the registry client subscribe method with the generated request_id
+    match state.registry_client.subscribe_with_request_id(request.ops_no, request_id).await {
         Ok(registry_response) => {
             info!("Successfully subscribed to registry with ops_no: {}", request.ops_no);
             

@@ -196,10 +196,25 @@ impl RegistryClient {
         &self,
         ops_no: u32,
     ) -> Result<SubscribeResponse, RegistryClientError> {
+        let request_id = uuid::Uuid::new_v4().to_string();
+        self.subscribe_with_request_id(ops_no, request_id).await
+    }
+
+    /// Subscribe to ONDC registry with optional request_id
+    ///
+    /// This method sends a subscription request to the ONDC registry with the provided
+    /// operation number and optionally uses a specific request_id (for domain verification).
+    #[instrument(skip(self), fields(subscriber_id = %self.config.subscriber_id, ops_no = ops_no))]
+    pub async fn subscribe_with_request_id(
+        &self,
+        ops_no: u32,
+        request_id: String,
+    ) -> Result<SubscribeResponse, RegistryClientError> {
         info!("Sending subscription request to registry (ops_no: {})", ops_no);
 
-        // Generate request ID
-        let request_id = uuid::Uuid::new_v4().to_string();
+        // Use provided request_id
+        info!("Using provided request_id: {}", request_id);
+        
         let timestamp = Utc::now().format("%Y-%m-%dT%H:%M:%S.%3fZ").to_string();
         
         // Set key validity period - valid for 1 week from now
@@ -478,7 +493,6 @@ impl RegistryClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::Environment;
 
     #[test]
     fn test_subscribe_request_serialization() {
