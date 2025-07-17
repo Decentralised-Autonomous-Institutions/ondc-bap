@@ -497,7 +497,7 @@ pub fn x25519_public_key_from_base64(base64_key: &str) -> Result<[u8; 32], ONDCC
 /// Convert X25519 public key from raw bytes to DER format.
 ///
 /// This function takes a raw 32-byte X25519 public key and encodes it
-/// in DER format according to RFC 8410.
+/// in DER format according to RFC 8410 as a SubjectPublicKeyInfo structure.
 ///
 /// # Arguments
 ///
@@ -505,7 +505,7 @@ pub fn x25519_public_key_from_base64(base64_key: &str) -> Result<[u8; 32], ONDCC
 ///
 /// # Returns
 ///
-/// The DER-encoded public key as bytes.
+/// The DER-encoded public key as bytes in SubjectPublicKeyInfo format.
 ///
 /// # Errors
 ///
@@ -524,6 +524,9 @@ pub fn x25519_public_key_from_base64(base64_key: &str) -> Result<[u8; 32], ONDCC
 /// assert!(der_key.len() > 32); // DER encoding adds structure
 /// ```
 pub fn x25519_public_key_to_der(raw_key: &[u8]) -> Result<Vec<u8>, ONDCCryptoError> {
+    use der::asn1::{BitString, ObjectIdentifier};
+    use der::{Sequence, Encode};
+
     if raw_key.len() != 32 {
         return Err(ONDCCryptoError::InvalidKeyLength {
             expected: 32,
@@ -531,11 +534,37 @@ pub fn x25519_public_key_to_der(raw_key: &[u8]) -> Result<Vec<u8>, ONDCCryptoErr
         });
     }
 
-    // Create DER structure for X25519 public key
-    let octet_string = OctetString::new(raw_key)
-        .map_err(|e| ONDCCryptoError::EncodingError(format!("DER encoding failed: {}", e)))?;
+    // X25519 algorithm identifier OID as per RFC 8410
+    let x25519_oid = ObjectIdentifier::new("1.3.101.110")
+        .map_err(|e| ONDCCryptoError::EncodingError(format!("Invalid OID: {}", e)))?;
 
-    octet_string
+    // Algorithm identifier structure
+    #[derive(Sequence)]
+    struct AlgorithmIdentifier {
+        algorithm: ObjectIdentifier,
+        // parameters are omitted for X25519 as per RFC 8410
+    }
+
+    // SubjectPublicKeyInfo structure
+    #[derive(Sequence)]
+    struct SubjectPublicKeyInfo {
+        algorithm: AlgorithmIdentifier,
+        subject_public_key: BitString,
+    }
+
+    let algorithm = AlgorithmIdentifier {
+        algorithm: x25519_oid,
+    };
+
+    let subject_public_key = BitString::new(0, raw_key)
+        .map_err(|e| ONDCCryptoError::EncodingError(format!("BitString creation failed: {}", e)))?;
+
+    let subject_public_key_info = SubjectPublicKeyInfo {
+        algorithm,
+        subject_public_key,
+    };
+
+    subject_public_key_info
         .to_der()
         .map_err(|e| ONDCCryptoError::EncodingError(format!("DER serialization failed: {}", e)))
 }
@@ -571,10 +600,40 @@ pub fn x25519_public_key_to_der(raw_key: &[u8]) -> Result<Vec<u8>, ONDCCryptoErr
 /// assert_eq!(&decoded_key, &raw_key);
 /// ```
 pub fn x25519_public_key_from_der(der_key: &[u8]) -> Result<[u8; 32], ONDCCryptoError> {
-    let octet_string = OctetString::from_der(der_key)
+    use der::asn1::{BitString, ObjectIdentifier};
+    use der::{Sequence, Decode};
+
+    // X25519 algorithm identifier OID as per RFC 8410
+    let x25519_oid = ObjectIdentifier::new("1.3.101.110")
+        .map_err(|e| ONDCCryptoError::EncodingError(format!("Invalid OID: {}", e)))?;
+
+    // Algorithm identifier structure
+    #[derive(Sequence)]
+    struct AlgorithmIdentifier {
+        algorithm: ObjectIdentifier,
+        // parameters are omitted for X25519 as per RFC 8410
+    }
+
+    // SubjectPublicKeyInfo structure
+    #[derive(Sequence)]
+    struct SubjectPublicKeyInfo {
+        algorithm: AlgorithmIdentifier,
+        subject_public_key: BitString,
+    }
+
+    let subject_public_key_info = SubjectPublicKeyInfo::from_der(der_key)
         .map_err(|e| ONDCCryptoError::EncodingError(format!("DER decoding failed: {}", e)))?;
 
-    let key_bytes = octet_string.as_bytes();
+    // Verify this is an X25519 key
+    if subject_public_key_info.algorithm.algorithm != x25519_oid {
+        return Err(ONDCCryptoError::EncodingError(
+            "Invalid algorithm identifier: expected X25519".to_string(),
+        ));
+    }
+
+    // Extract the public key bytes
+    let key_bytes = subject_public_key_info.subject_public_key.as_bytes()
+        .ok_or_else(|| ONDCCryptoError::EncodingError("Invalid bit string".to_string()))?;
 
     if key_bytes.len() != 32 {
         return Err(ONDCCryptoError::InvalidKeyLength {

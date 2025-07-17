@@ -6,14 +6,13 @@
 
 use std::sync::Arc;
 use std::time::Duration;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use reqwest::{Client, ClientBuilder};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn, error, instrument};
 
 use crate::config::{ONDCConfig, ondc_config::ParticipantType};
 use crate::services::KeyManagementService;
-use ondc_crypto_formats::encode_signature;
 
 /// Registry client error types
 #[derive(Debug, thiserror::Error)]

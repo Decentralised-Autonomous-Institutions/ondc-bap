@@ -43,6 +43,9 @@ pub enum KeyManagementError {
 
     #[error("Key expired: {0}")]
     KeyExpired(String),
+
+    #[error("Key conversion error: {0}")]
+    ConversionError(String),
 }
 
 /// Key metadata for tracking key lifecycle
@@ -234,13 +237,17 @@ impl KeyManagementService {
         Ok(encode_signature(&public_key))
     }
 
-    /// Get encryption public key
+    /// Get encryption public key in DER format (Base64 encoded)
     #[instrument(skip(self))]
     pub async fn get_encryption_public_key(&self) -> Result<String, KeyManagementError> {
         let key_exchange = self.get_encryption_key().await?;
         let public_key = key_exchange.public_key();
 
-        Ok(encode_signature(&public_key))
+        // Convert to DER format as required by ONDC
+        let der_key = ondc_crypto_formats::key_formats::x25519_public_key_to_der(&public_key)
+            .map_err(|e| KeyManagementError::ConversionError(e.to_string()))?;
+
+        Ok(encode_signature(&der_key))
     }
 
     /// Get unique key ID
