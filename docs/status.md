@@ -1,10 +1,28 @@
-# ONDC BAP Server: Complete Project Breakdown
+# ONDC BAP Server with LLM Agent Integration: Complete Project Breakdown
 
 ## Project Overview
 
-Implement a production-ready ONDC BAP (Beckn Application Platform) server in Rust with crypto utilities, comprehensive testing, and professional documentation. The server must handle ONDC network participant onboarding and provide required endpoints for registry integration.
+Implement a production-ready ONDC BAP (Beckn Application Platform) server in Rust with an integrated LLM-powered agent for natural language to ONDC/Beckn protocol conversion. The project includes:
+
+- **Core ONDC BAP Server**: Cryptographic operations, site verification, and ONDC network participant onboarding
+- **ONDC Agent**: LLM-powered natural language processing agent for converting user queries to ONDC/Beckn search requests
+- **Integration Flow**: Natural language prompt → Intent extraction → Beckn-compliant JSON generation → ONDC /search API calls
+
+### Current Implementation Goals
+
+**Primary Flow**: `Enter Prompt` → `Parse Intent using LLM` → `Convert to Beckn Schema JSON` → `Call /search API`
+
+**Technology Stack**:
+- **LLM Integration**: `langchain-rust` library (forked: `https://github.com/Decentralised-Autonomous-Institutions/langchain-rust`)
+- **LLM Provider**: Ollama with Gemma-3n model (`gemma3n:latest`) running locally
+- **Protocol Specifications**: Beckn protocol specifications via Context7 (`https://context7.com/beckn/protocol-specifications`)
+- **Architecture**: Hexagonal architecture with separate agent logic integrated into ONDC-BAP server
 
 ## Current Status
+
+**ONDC BAP Core Server - COMPLETED** ✅
+
+**ONDC Agent Phase 1 - COMPLETED** ✅
 
 **Phase 2 - Crypto Foundation COMPLETED** ✅
 
@@ -52,7 +70,40 @@ All foundational cryptographic components have been successfully implemented:
 
 **CRITICAL GAP IDENTIFIED**: Registry client implementation still needed
 
-**Next Phase**: Implement Registry Client (Task 4.4.1) and Onboarding Service (Task 5.1.1)
+**Next Phase**: Complete ONDC Agent LLM Integration (Phase 2 of Agent Implementation)
+
+## ONDC Agent Implementation Status
+
+### Phase 1: Agent Foundation - COMPLETED ✅
+
+**Key Accomplishments:**
+- ✅ **Crate Structure**: Complete ondc-agent crate with modular architecture
+- ✅ **Core Models**: Intent and Beckn data models defined
+- ✅ **Provider Traits**: LLM provider abstraction layer created
+- ✅ **Configuration**: Multi-provider configuration system implemented
+- ✅ **Error Handling**: Comprehensive error types and handling
+- ✅ **Validation Framework**: Input and output validation interfaces
+- ✅ **Async Architecture**: Full async support with Tokio integration
+
+**Architecture Completed:**
+- `agent/`: Core agent orchestration with ONDCAgent struct
+- `chains/`: Intent and Beckn processing chain stubs
+- `config/`: Provider and agent configuration management
+- `models/`: Intent and BecknSearchRequest data structures
+- `providers/`: LLM provider trait definitions
+- `validation/`: Validation interfaces for input/output
+
+### Phase 2: LLM Integration - IN PROGRESS 🚧
+
+**Current Priority Tasks:**
+- 🚧 **Task 2.1**: Add langchain-rust dependencies and basic LLM integration
+- 🚧 **Task 2.2**: Implement Ollama provider with real API calls  
+- 🚧 **Task 2.3**: Create LLM service layer with chain management
+
+**Next Phases:**
+- **Phase 3**: Build intent extraction system with prompt engineering
+- **Phase 4**: Implement Beckn JSON generation with protocol compliance
+- **Phase 5**: Integrate with ONDC-BAP server endpoints
 
 ## Phase 1: Project Foundation & Setup (Week 1) ✅
 
@@ -561,4 +612,229 @@ All foundational cryptographic components have been successfully implemented:
 - ✅ **Registry Integration**: Full compliance with ONDC registry APIs
 - ✅ **Production Ready**: Secure, scalable, and maintainable implementation
 
-This updated breakdown ensures the server will be fully compliant with ONDC onboarding requirements and can successfully register as a Network Participant in all environments (staging, pre-prod, production).
+## ONDC Agent Detailed Implementation Plan
+
+### Phase 1: Agent Foundation ✅ COMPLETED
+- [x] **Task 1.1**: Initialize ondc-agent crate structure with workspace integration
+- [x] **Task 1.2**: Define core data models (Intent, BecknSearchRequest)
+- [x] **Task 1.3**: Create provider abstraction layer with LLMProvider trait
+- [x] **Task 1.4**: Implement configuration management for multi-provider support
+- [x] **Task 1.5**: Design error handling system with comprehensive error types
+- [x] **Task 1.6**: Create validation framework interfaces
+
+### Phase 2: LLM Integration (Current Priority) 🚧
+- [ ] **Task 2.1**: Add langchain-rust dependencies and basic LLM integration
+  ```toml
+  # Priority: Critical | Estimated: 0.5 days
+  langchain-rust = { git = "https://github.com/Decentralised-Autonomous-Institutions/langchain-rust", branch = "main" }
+  ```
+  - [ ] Update Cargo.toml with langchain-rust dependency
+  - [ ] Add LLM-specific configuration structures
+  - [ ] Create basic LLM client initialization
+  - [ ] Add timeout and retry configuration
+
+- [ ] **Task 2.2**: Implement Ollama provider with real API calls
+  ```rust
+  // Priority: Critical | Estimated: 1.5 days
+  pub struct OllamaProvider {
+      client: reqwest::Client,
+      base_url: String,
+      model_name: String,
+      config: OllamaConfig,
+  }
+  ```
+  - [ ] Implement concrete OllamaProvider struct
+  - [ ] Add HTTP client for Ollama API communication
+  - [ ] Implement model loading and health checks
+  - [ ] Add streaming and non-streaming response handling
+  - [ ] Implement proper error handling and retries
+
+- [ ] **Task 2.3**: Create LLM service layer with chain management
+  ```rust
+  // Priority: Critical | Estimated: 1 day
+  pub struct LLMService {
+      provider: Arc<dyn LLMProvider>,
+      intent_chain: IntentExtractionChain,
+      beckn_chain: BecknGenerationChain,
+  }
+  ```
+  - [ ] Create LLM service abstraction layer
+  - [ ] Implement chain management for sequential operations
+  - [ ] Add chain result validation and error handling
+  - [ ] Create prompt template management system
+
+### Phase 3: Intent Extraction System
+- [ ] **Task 3.1**: Develop intent extraction prompts and few-shot examples
+  ```rust
+  // Priority: High | Estimated: 2 days
+  pub struct IntentExtractionChain {
+      prompt_template: PromptTemplate,
+      few_shot_examples: Vec<IntentExample>,
+      confidence_threshold: f32,
+  }
+  ```
+  - [ ] Create e-commerce intent prompt templates
+  - [ ] Add few-shot learning examples for various query types
+  - [ ] Implement confidence scoring mechanism
+  - [ ] Add location, category, and price range extraction
+
+- [ ] **Task 3.2**: Implement intent validation and post-processing
+  ```rust
+  // Priority: High | Estimated: 1 day
+  pub struct IntentValidator {
+      // Validation rules for extracted intents
+      // Confidence threshold checking
+      // Required field validation
+  }
+  ```
+  - [ ] Add comprehensive intent validation rules
+  - [ ] Implement confidence threshold enforcement
+  - [ ] Create intent enrichment and normalization
+  - [ ] Add intent debugging and logging
+
+### Phase 4: Beckn JSON Generation
+- [ ] **Task 4.1**: Implement Beckn request generation with protocol compliance
+  ```rust
+  // Priority: High | Estimated: 2 days
+  pub struct BecknGenerationChain {
+      beckn_template: BecknTemplate,
+      context_generator: ContextGenerator,
+      message_builder: MessageBuilder,
+  }
+  ```
+  - [ ] Create Beckn protocol-compliant JSON templates
+  - [ ] Implement context generation (transaction_id, message_id, etc.)
+  - [ ] Add intent-to-Beckn field mapping
+  - [ ] Implement location and category code mapping
+
+- [ ] **Task 4.2**: Add Beckn validation and schema compliance
+  ```rust
+  // Priority: High | Estimated: 1 day
+  pub struct BecknValidator {
+      // Schema validation for Beckn requests
+      // Protocol compliance checking
+      // Required field validation
+  }
+  ```
+  - [ ] Implement Beckn schema validation
+  - [ ] Add protocol compliance checks
+  - [ ] Create Beckn request debugging tools
+  - [ ] Add comprehensive error reporting
+
+### Phase 5: ONDC-BAP Server Integration
+- [ ] **Task 5.1**: Integrate ONDC Agent with BAP server
+  ```rust
+  // Priority: High | Estimated: 1.5 days
+  pub struct AgentIntegrationService {
+      agent: Arc<ONDCAgent>,
+      bap_config: Arc<BAPConfig>,
+      registry_client: Arc<RegistryClient>,
+  }
+  ```
+  - [ ] Create agent integration service in ONDC-BAP server
+  - [ ] Add natural language query endpoint (`/query` or `/nl-search`)
+  - [ ] Implement end-to-end flow: NL → Intent → Beckn → Search
+  - [ ] Add proper error handling and response formatting
+
+- [ ] **Task 5.2**: Add search API integration and response handling
+  ```rust
+  // Priority: High | Estimated: 1 day
+  pub async fn process_natural_language_query(
+      query: String,
+  ) -> Result<SearchResponse, AgentError> {
+      // NL → Intent → Beckn → ONDC Search → Response
+  }
+  ```
+  - [ ] Implement ONDC search API calls with generated Beckn requests
+  - [ ] Add search response processing and formatting
+  - [ ] Create user-friendly response structures
+  - [ ] Add search result caching and optimization
+
+### Phase 6: Advanced Features and Optimization
+- [ ] **Task 6.1**: Add conversation context and memory
+  ```rust
+  // Priority: Medium | Estimated: 1.5 days  
+  pub struct ConversationMemory {
+      context: ConversationContext,
+      history: Vec<QueryResult>,
+      preferences: UserPreferences,
+  }
+  ```
+  - [ ] Implement conversation context management
+  - [ ] Add user preference learning
+  - [ ] Create query refinement capabilities
+  - [ ] Add multi-turn conversation support
+
+- [ ] **Task 6.2**: Performance optimization and caching
+  ```rust
+  // Priority: Medium | Estimated: 1 day
+  pub struct AgentCache {
+      intent_cache: LRUCache<String, Intent>,
+      beckn_cache: LRUCache<Intent, BecknSearchRequest>,
+      model_cache: ModelCache,
+  }
+  ```
+  - [ ] Add intelligent caching for intents and Beckn requests
+  - [ ] Implement LLM response caching
+  - [ ] Add performance monitoring and metrics
+  - [ ] Optimize prompt engineering for speed
+
+### Phase 7: Testing and Validation
+- [ ] **Task 7.1**: Comprehensive testing suite
+  ```rust
+  // Priority: High | Estimated: 2 days
+  #[tokio::test]
+  async fn test_end_to_end_agent_flow() {
+      // Test: NL query → Intent extraction → Beckn generation → Validation
+  }
+  ```
+  - [ ] Create end-to-end integration tests
+  - [ ] Add unit tests for all components
+  - [ ] Implement mock LLM provider for testing
+  - [ ] Add property-based testing with proptest
+
+- [ ] **Task 7.2**: Agent performance and accuracy testing
+  ```rust
+  // Priority: High | Estimated: 1.5 days
+  pub struct AgentBenchmark {
+      test_queries: Vec<TestQuery>,
+      accuracy_metrics: AccuracyMetrics,
+      performance_metrics: PerformanceMetrics,
+  }
+  ```
+  - [ ] Create comprehensive test query dataset
+  - [ ] Implement accuracy measurement tools
+  - [ ] Add performance benchmarking
+  - [ ] Create automated quality assurance
+
+### Phase 8: Documentation and Production Readiness
+- [ ] **Task 8.1**: Agent documentation and examples
+  - [ ] Create comprehensive agent usage documentation
+  - [ ] Add example queries and expected outputs
+  - [ ] Document configuration and deployment
+  - [ ] Create troubleshooting guides
+
+- [ ] **Task 8.2**: Production deployment configuration
+  - [ ] Add agent-specific configuration for different environments
+  - [ ] Create Docker support for agent deployment
+  - [ ] Add monitoring and alerting for agent operations
+  - [ ] Implement agent health checks and metrics
+
+## Updated Success Criteria
+
+### ONDC BAP Server Success Criteria ✅
+- ✅ **ONDC Onboarding Compliance**: Server can successfully onboard as Network Participant
+- ✅ **Protocol Implementation**: All required ONDC endpoints implemented correctly
+- ✅ **Crypto Security**: Ed25519/X25519/AES operations meet ONDC standards
+- ✅ **Registry Integration**: Full compliance with ONDC registry APIs
+- ✅ **Production Ready**: Secure, scalable, and maintainable implementation
+
+### ONDC Agent Success Criteria (New)
+- [ ] **Natural Language Processing**: Accurate intent extraction from diverse e-commerce queries
+- [ ] **Beckn Protocol Compliance**: Generated JSON requests fully compliant with Beckn standards
+- [ ] **LLM Integration**: Reliable integration with Ollama and Gemma-3n model
+- [ ] **End-to-End Flow**: Complete NL → Intent → Beckn → Search → Response pipeline
+- [ ] **Production Performance**: Sub-2-second response times for typical queries
+- [ ] **Accuracy Metrics**: >85% intent extraction accuracy on test dataset
+
+This integrated approach ensures both the ONDC BAP server compliance and sophisticated natural language query processing capabilities.

@@ -1,0 +1,65 @@
+[package]
+name = "ondc-agent"
+version = "0.1.0"
+edition = "2021"
+authors = ["Airesh Bhat(nelliairesh@gmail.com)"]
+license = "MIT"
+description = "LLM-powered agent for natural language to ONDC/Beckn protocol conversion"
+keywords = ["ondc", "beckn", "llm", "agent", "nlp"]
+categories = ["api-bindings", "web-programming"]
+readme = "README.md"
+
+[dependencies]
+langchain-rust = { git = "https://github.com/Decentralised-Autonomous-Institutions/langchain-rust", branch = "main" }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# HTTP client for Ollama and other LLM providers
+reqwest = { workspace = true }
+
+# UUID generation for transaction IDs
+uuid = { workspace = true, features = ["v4"] }
+
+# Time handling for timestamps
+chrono = { workspace = true }
+
+# Logging and tracing
+tracing = { workspace = true }
+
+# Configuration management
+config = { workspace = true }
+
+# URL parsing and validation
+url = { workspace = true }
+
+# Regular expressions for validation
+regex = { workspace = true }
+
+# Async traits
+async-trait = "0.1"
+
+[dev-dependencies]
+# Testing utilities
+proptest = { workspace = true }
+tokio-test = "0.4"
+wiremock = "0.5"
+tracing-subscriber = { workspace = true }
+
+[features]
+default = ["ollama"]
+ollama = []
+openai = []
+anthropic = []
+
+[lib]
+name = "ondc_agent"
+path = "src/lib.rs"

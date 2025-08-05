@@ -27,6 +27,7 @@ graph TB
                     ON_SUBSCRIBE["/on_subscribe"]
                     HEALTH["/health"]
                     ADMIN_API["/admin/*"]
+                    NL_QUERY_API["/query<br/>Natural Language Queries"]
                 end
             end
             
@@ -36,6 +37,7 @@ graph TB
                 KEY_MGR_SVC[Key Management Service]
                 REGISTRY_SVC[Registry Client Service]
                 CHALLENGE_SVC[Challenge Handler Service]
+                AGENT_INTEGRATION_SVC[Agent Integration Service<br/>NL Query Processing]
             end
             
             %% Domain Layer
@@ -54,6 +56,15 @@ graph TB
                 FILE_SYS[File System<br/>Key Storage]
                 LOGGER[Logging & Tracing]
             end
+        end
+        
+        %% ONDC Agent Components
+        subgraph "🤖 ONDC Agent (ondc-agent)"
+            AGENT_ORCHESTRATOR[ONDC Agent<br/>Main orchestrator]
+            INTENT_CHAIN[Intent Extraction Chain<br/>NL → Intent]
+            BECKN_CHAIN[Beckn Generation Chain<br/>Intent → Beckn JSON]
+            LLM_PROVIDER[LLM Provider<br/>Ollama/OpenAI/Anthropic]
+            AGENT_VALIDATOR[Agent Validator<br/>Input/Output validation]
         end
         
         %% Crypto Components
@@ -75,16 +86,20 @@ graph TB
         MIDDLEWARE --> ON_SUBSCRIBE
         MIDDLEWARE --> HEALTH
         MIDDLEWARE --> ADMIN_API
+        MIDDLEWARE --> NL_QUERY_API
         
         SITE_VERIFY --> ONBOARD_SVC
         ON_SUBSCRIBE --> CHALLENGE_SVC
         ADMIN_API --> ONBOARD_SVC
         ADMIN_API --> KEY_MGR_SVC
+        NL_QUERY_API --> AGENT_INTEGRATION_SVC
         
         ONBOARD_SVC --> REGISTRY_SVC
         ONBOARD_SVC --> KEY_MGR_SVC
         CHALLENGE_SVC --> KEY_MGR_SVC
         REGISTRY_SVC --> HTTP_CLIENT
+        AGENT_INTEGRATION_SVC --> AGENT_ORCHESTRATOR
+        AGENT_INTEGRATION_SVC --> REGISTRY_SVC
         
         KEY_MGR_SVC --> SUBSCRIBER
         ONBOARD_SVC --> REGISTRATION
@@ -99,6 +114,15 @@ graph TB
         REGISTRY_SVC --> BASE64_UTILS
         CHALLENGE_SVC --> X25519_EXCHANGE
         
+        %% ONDC Agent internal connections
+        AGENT_ORCHESTRATOR --> INTENT_CHAIN
+        AGENT_ORCHESTRATOR --> BECKN_CHAIN
+        INTENT_CHAIN --> LLM_PROVIDER
+        BECKN_CHAIN --> LLM_PROVIDER
+        AGENT_ORCHESTRATOR --> AGENT_VALIDATOR
+        INTENT_CHAIN --> AGENT_VALIDATOR
+        BECKN_CHAIN --> AGENT_VALIDATOR
+        
         CONFIG_MGR --> FILE_SYS
         HTTP_CLIENT --> LOGGER
         KEY_MGR_SVC --> FILE_SYS
@@ -108,15 +132,17 @@ graph TB
         classDef presentationLayer fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
         classDef applicationLayer fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
         classDef domainLayer fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
-        classDef infrastructureLayer fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+        classDef infrastructureLayer fill:#fce4ec,stroke:#c2185b,stroke-width:2px 
         classDef cryptoLayer fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+        classDef agentLayer fill:#fff3e0,stroke:#ff6f00,stroke-width:2px
         
         class ONDC_REGISTRY,SSL_PROVIDER,DNS_PROVIDER externalSystem
-        class HTTP_SERVER,MIDDLEWARE,SITE_VERIFY,ON_SUBSCRIBE,HEALTH,ADMIN_API presentationLayer
-        class ONBOARD_SVC,KEY_MGR_SVC,REGISTRY_SVC,CHALLENGE_SVC applicationLayer
+        class HTTP_SERVER,MIDDLEWARE,SITE_VERIFY,ON_SUBSCRIBE,HEALTH,ADMIN_API,NL_QUERY_API presentationLayer
+        class ONBOARD_SVC,KEY_MGR_SVC,REGISTRY_SVC,CHALLENGE_SVC,AGENT_INTEGRATION_SVC applicationLayer
         class SUBSCRIBER,CHALLENGE,REGISTRATION,KEY_PAIR,DOMAIN_RULES domainLayer
         class CONFIG_MGR,HTTP_CLIENT,FILE_SYS,LOGGER infrastructureLayer
         class ED25519_SIGNER,X25519_EXCHANGE,BASE64_UTILS,BLAKE2_HASHER cryptoLayer
+        class AGENT_ORCHESTRATOR,INTENT_CHAIN,BECKN_CHAIN,LLM_PROVIDER,AGENT_VALIDATOR agentLayer
     end
 
 ---
@@ -171,6 +197,56 @@ sequenceDiagram
     BAP->>Registry: POST /v2.0/lookup
     Registry-->>BAP: Participant record
     BAP-->>Admin: Registration confirmed
+
+---
+
+%% ============================================================================
+%% 2.5. ONDC Agent Natural Language Query Flow
+%% ============================================================================
+
+sequenceDiagram
+    participant User as 👤 User
+    participant BAP as 🖥️ BAP Server
+    participant Agent as 🤖 ONDC Agent
+    participant LLM as 🧠 LLM (Ollama)
+    participant BPP as 🏪 ONDC BPPs
+    
+    Note over User,BPP: Natural Language to ONDC Search Flow
+    
+    %% Natural Language Query
+    User->>BAP: POST /query<br/>{"query": "I need fresh vegetables in Bangalore"}
+    BAP->>BAP: Validate input query
+    BAP->>Agent: extract_intent(query)
+    
+    %% Intent Extraction
+    Agent->>Agent: Prepare prompt with few-shot examples
+    Agent->>LLM: Generate intent from natural language
+    Note right of LLM: Prompt: Extract e-commerce intent<br/>- Category: vegetables<br/>- Location: Bangalore<br/>- Urgency: normal
+    LLM-->>Agent: Intent JSON response
+    
+    Agent->>Agent: Validate intent confidence (>70%)
+    Agent->>Agent: Enrich intent (normalize location, category codes)
+    Agent-->>BAP: Extracted Intent
+    
+    %% Beckn Request Generation  
+    BAP->>Agent: generate_search_request(intent)
+    Agent->>Agent: Map intent to Beckn protocol
+    Agent->>Agent: Generate Beckn context (transaction_id, etc.)
+    Agent->>Agent: Build Beckn message structure
+    Agent->>Agent: Validate Beckn schema compliance
+    Agent-->>BAP: Beckn Search Request
+    
+    %% ONDC Search Execution
+    BAP->>BPP: Broadcast Beckn search to BPPs
+    Note right of BPP: Standard ONDC search protocol<br/>across multiple providers
+    BPP-->>BAP: Search responses from providers
+    
+    %% Response Formatting
+    BAP->>BAP: Aggregate search results
+    BAP->>BAP: Format user-friendly response
+    BAP-->>User: Natural language search results
+    
+    Note over User,BPP: Complete NL → Intent → Beckn → Search → Results flow
 
 ---
 
@@ -253,6 +329,94 @@ graph LR
         class SITE_HANDLER,SUBSCRIBE_HANDLER,ADMIN_HANDLER,HEALTH_HANDLER handlerLayer
         class ONBOARD_SERVICE,KEY_SERVICE,REGISTRY_CLIENT,CRYPTO_SERVICE serviceLayer
         class ONDC_API,FILE_STORAGE externalLayer
+    end
+
+---
+
+%% ============================================================================
+%% 3.5. ONDC Agent Processing Flow
+%% ============================================================================
+
+graph LR
+    subgraph "ONDC Agent Processing Architecture"
+        direction LR
+        
+        %% Input
+        NL_INPUT[👤 Natural Language Query<br/>"I need fresh vegetables in Bangalore"]
+        
+        %% Intent Extraction Chain
+        subgraph "🔍 Intent Extraction Chain"
+            PROMPT_PREP[Prompt Preparation<br/>Few-shot examples + Query]
+            LLM_CALL[LLM API Call<br/>Ollama/Gemma-3n]
+            INTENT_PARSE[Intent Parsing<br/>JSON validation]
+            CONFIDENCE_CHECK[Confidence Check<br/>>70% threshold]
+            INTENT_ENRICH[Intent Enrichment<br/>Location/Category normalization]
+        end
+        
+        %% Intent Structure
+        INTENT_OUTPUT[📋 Structured Intent<br/>Category: Grocery/Vegetables<br/>Location: Bangalore, KA<br/>Urgency: Normal<br/>Confidence: 0.85]
+        
+        %% Beckn Generation Chain
+        subgraph "🔄 Beckn Generation Chain"
+            CONTEXT_GEN[Context Generation<br/>transaction_id, message_id, etc.]
+            MESSAGE_BUILD[Message Builder<br/>Intent → Beckn fields]
+            SCHEMA_VALID[Schema Validation<br/>Beckn protocol compliance]
+            JSON_FORMAT[JSON Formatting<br/>Final Beckn request]
+        end
+        
+        %% Output
+        BECKN_OUTPUT[📄 Beckn Search Request<br/>ONDC protocol compliant JSON]
+        
+        %% Error Handling
+        subgraph "⚠️ Error Handling"
+            VALIDATION_ERROR[Validation Errors]
+            CONFIDENCE_ERROR[Low Confidence]
+            LLM_ERROR[LLM API Errors]
+            SCHEMA_ERROR[Schema Errors]
+        end
+        
+        %% External Dependencies
+        OLLAMA_API[🧠 Ollama API<br/>Local LLM Server]
+        BECKN_SPECS[📋 Beckn Protocol Specs<br/>Context7 Integration]
+        
+        %% Flow connections
+        NL_INPUT --> PROMPT_PREP
+        PROMPT_PREP --> LLM_CALL
+        LLM_CALL --> INTENT_PARSE
+        INTENT_PARSE --> CONFIDENCE_CHECK
+        CONFIDENCE_CHECK --> INTENT_ENRICH
+        INTENT_ENRICH --> INTENT_OUTPUT
+        
+        INTENT_OUTPUT --> CONTEXT_GEN
+        CONTEXT_GEN --> MESSAGE_BUILD
+        MESSAGE_BUILD --> SCHEMA_VALID
+        SCHEMA_VALID --> JSON_FORMAT
+        JSON_FORMAT --> BECKN_OUTPUT
+        
+        %% External connections
+        LLM_CALL --> OLLAMA_API
+        MESSAGE_BUILD --> BECKN_SPECS
+        
+        %% Error flows
+        INTENT_PARSE --> VALIDATION_ERROR
+        CONFIDENCE_CHECK --> CONFIDENCE_ERROR
+        LLM_CALL --> LLM_ERROR
+        SCHEMA_VALID --> SCHEMA_ERROR
+        
+        %% Styling
+        classDef inputLayer fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+        classDef intentLayer fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+        classDef becknLayer fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+        classDef outputLayer fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+        classDef errorLayer fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px
+        classDef externalLayer fill:#fff8e1,stroke:#f57c00,stroke-width:2px
+        
+        class NL_INPUT inputLayer
+        class PROMPT_PREP,LLM_CALL,INTENT_PARSE,CONFIDENCE_CHECK,INTENT_ENRICH,INTENT_OUTPUT intentLayer
+        class CONTEXT_GEN,MESSAGE_BUILD,SCHEMA_VALID,JSON_FORMAT becknLayer
+        class BECKN_OUTPUT outputLayer
+        class VALIDATION_ERROR,CONFIDENCE_ERROR,LLM_ERROR,SCHEMA_ERROR errorLayer
+        class OLLAMA_API,BECKN_SPECS externalLayer
     end
 
 ---

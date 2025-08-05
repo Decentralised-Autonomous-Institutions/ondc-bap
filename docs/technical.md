@@ -34,7 +34,7 @@ This document provides comprehensive technical guidance for implementing the OND
 
 ### Updated Crate Architecture
 
-The project now consists of four foundational crates plus the main BAP server:
+The project now consists of five foundational crates plus the main BAP server and the ONDC Agent:
 
 #### Foundational Crates (Phase 2 - COMPLETED ✅)
 
@@ -52,6 +52,80 @@ The project now consists of four foundational crates plus the main BAP server:
    - Base64 encoding utilities
    - Key format conversions
    - DER format support
+
+4. **`ondc-crypto-cli`** - Command-line utilities
+   - Key generation utilities
+   - Cryptographic testing tools
+   - Development and debugging aids
+
+#### ONDC Agent Crate: `ondc-agent` (NEW ✨)
+
+**Purpose**: LLM-powered natural language processing agent for converting user queries to ONDC/Beckn search requests.
+
+**Architecture**: 
+```
+ondc-agent/
+├── Cargo.toml
+├── README.md
+├── src/
+│   ├── lib.rs                     # Library exports and documentation
+│   ├── agent/                     # Core agent orchestration
+│   │   ├── mod.rs
+│   │   └── ondc_agent.rs          # Main agent implementation
+│   ├── chains/                    # LLM processing chains
+│   │   ├── mod.rs
+│   │   ├── intent_chain.rs        # Intent extraction chain
+│   │   └── beckn_chain.rs         # Beckn JSON generation chain
+│   ├── config/                    # Configuration management
+│   │   ├── mod.rs
+│   │   ├── agent_config.rs        # Agent configuration
+│   │   └── provider_config.rs     # LLM provider configuration
+│   ├── models/                    # Data models
+│   │   ├── mod.rs
+│   │   ├── intent.rs              # Intent data structures
+│   │   └── beckn.rs               # Beckn protocol models
+│   ├── providers/                 # LLM provider implementations
+│   │   ├── mod.rs
+│   │   ├── traits.rs              # Provider trait definitions
+│   │   └── ollama.rs              # Ollama provider implementation
+│   ├── validation/                # Input/output validation
+│   │   ├── mod.rs
+│   │   ├── input_validator.rs     # Input validation
+│   │   ├── intent_validator.rs    # Intent validation
+│   │   └── beckn_validator.rs     # Beckn validation
+│   └── error.rs                   # Error handling
+├── examples/                      # Usage examples
+│   ├── basic_usage.rs
+│   └── test_langchain.rs
+└── tests/                         # Integration tests
+```
+
+**Key Features**:
+- **Intent Extraction**: Natural language to structured intent conversion
+- **Beckn Generation**: Intent to ONDC/Beckn protocol JSON generation
+- **Multi-Provider Support**: Ollama, OpenAI, Anthropic provider implementations
+- **Validation Framework**: Comprehensive input/output validation
+- **Configuration Management**: Flexible provider and environment configuration
+- **Error Handling**: Robust error handling with detailed error types
+
+**Dependencies**:
+```toml
+[dependencies]
+langchain-rust = { git = "https://github.com/Decentralised-Autonomous-Institutions/langchain-rust", branch = "main" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+reqwest = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+chrono = { workspace = true }
+tracing = { workspace = true }
+config = { workspace = true }
+url = { workspace = true }
+regex = { workspace = true }
+async-trait = "0.1"
+```
 
 #### Main BAP Server Crate: `ondc-bap`
 
@@ -106,6 +180,9 @@ ondc-crypto-traits = { path = "../ondc-crypto-traits" }
 ondc-crypto-algorithms = { path = "../ondc-crypto-algorithms" }
 ondc-crypto-formats = { path = "../ondc-crypto-formats" }
 
+# ONDC Agent integration
+ondc-agent = { path = "../ondc-agent" }
+
 # Web framework
 axum = "0.7"
 tower = "0.4"
@@ -138,6 +215,469 @@ thiserror = "1.0"
 # Security
 rustls = "0.22"
 rustls-pemfile = "2.0"
+```
+
+## ONDC Agent Architecture and Integration
+
+### ONDC Agent Design Principles
+
+The ONDC Agent follows a layered architecture with clear separation of concerns:
+
+1. **Agent Orchestration Layer**: High-level coordination of the NL → Intent → Beckn flow
+2. **Chain Processing Layer**: Specialized chains for intent extraction and Beckn generation
+3. **Provider Abstraction Layer**: Multi-LLM provider support through trait-based design
+4. **Validation Layer**: Comprehensive input/output validation and error handling
+5. **Configuration Layer**: Environment-specific and provider-specific configuration
+
+### ONDC Agent Integration Patterns
+
+#### 1. Natural Language Processing Chain Pattern
+
+```rust
+// chains/intent_chain.rs
+use langchain_rust::chain::{Chain, ChainError};
+use langchain_rust::prompt::PromptTemplate;
+use langchain_rust::llm::LLM;
+
+pub struct IntentExtractionChain {
+    llm: Arc<dyn LLM>,
+    prompt_template: PromptTemplate,
+    few_shot_examples: Vec<IntentExample>,
+    confidence_threshold: f32,
+}
+
+impl IntentExtractionChain {
+    pub fn new(
+        llm: Arc<dyn LLM>,
+        config: &IntentExtractionConfig,
+    ) -> Result<Self, ChainError> {
+        let prompt_template = PromptTemplate::new(
+            r#"
+You are an expert at extracting e-commerce intent from natural language queries.
+Extract the following information from the user query:
+
+Examples:
+{few_shot_examples}
+
+User Query: {query}
+
+Extract the intent as JSON:
+{format_instructions}
+"#,
+        );
+
+        Ok(Self {
+            llm,
+            prompt_template,
+            few_shot_examples: config.few_shot_examples.clone(),
+            confidence_threshold: config.confidence_threshold,
+        })
+    }
+
+    #[instrument(skip(self), fields(query_length = query.len()))]
+    pub async fn extract_intent(&self, query: &str) -> Result<Intent, ChainError> {
+        info!("Extracting intent from natural language query");
+
+        // Prepare prompt with few-shot examples
+        let formatted_examples = self.format_few_shot_examples();
+        let format_instructions = self.get_json_format_instructions();
+
+        let prompt = self.prompt_template.format(&[
+            ("few_shot_examples", &formatted_examples),
+            ("query", query),
+            ("format_instructions", &format_instructions),
+        ])?;
+
+        // Execute LLM chain
+        let response = self.llm.generate(&prompt).await?;
+        
+        // Parse and validate response
+        let intent: Intent = serde_json::from_str(&response.text)
+            .map_err(|e| ChainError::InvalidResponse(e.to_string()))?;
+
+        // Validate confidence threshold
+        if intent.confidence < self.confidence_threshold {
+            warn!("Intent confidence {} below threshold {}", 
+                  intent.confidence, self.confidence_threshold);
+            return Err(ChainError::LowConfidence(intent.confidence));
+        }
+
+        // Enrich and normalize intent
+        let enriched_intent = self.enrich_intent(intent).await?;
+        
+        info!("Intent extracted successfully with confidence {}", 
+              enriched_intent.confidence);
+        
+        Ok(enriched_intent)
+    }
+
+    fn format_few_shot_examples(&self) -> String {
+        self.few_shot_examples
+            .iter()
+            .map(|example| format!(
+                "Query: \"{}\"\nIntent: {}\n",
+                example.query,
+                serde_json::to_string_pretty(&example.intent).unwrap()
+            ))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    async fn enrich_intent(&self, mut intent: Intent) -> Result<Intent, ChainError> {
+        // Normalize location information
+        if let Some(location) = &mut intent.location {
+            location.normalized = self.normalize_location(&location.raw).await?;
+        }
+
+        // Normalize category information
+        if let Some(category) = &mut intent.category {
+            category.ondc_code = self.map_to_ondc_category(&category.raw).await?;
+        }
+
+        // Add timestamp and metadata
+        intent.extracted_at = Some(chrono::Utc::now());
+        intent.version = Some("1.0".to_string());
+
+        Ok(intent)
+    }
+}
+```
+
+#### 2. Beckn JSON Generation Chain Pattern
+
+```rust
+// chains/beckn_chain.rs
+use crate::models::beckn::{BecknSearchRequest, BecknContext, BecknMessage, BecknIntent};
+use crate::models::intent::Intent;
+
+pub struct BecknGenerationChain {
+    template_engine: TemplateEngine,
+    context_generator: ContextGenerator,
+    validator: BecknValidator,
+    config: BecknChainConfig,
+}
+
+impl BecknGenerationChain {
+    #[instrument(skip(self), fields(intent_id = %intent.id))]
+    pub async fn generate_search_request(
+        &self,
+        intent: Intent,
+        bap_config: &BapConfig,
+    ) -> Result<BecknSearchRequest, ChainError> {
+        info!("Generating Beckn search request from intent");
+
+        // Generate Beckn context
+        let context = self.context_generator.generate_context(bap_config).await?;
+
+        // Build Beckn message from intent
+        let message = self.build_beckn_message(&intent).await?;
+
+        // Construct complete Beckn request
+        let beckn_request = BecknSearchRequest {
+            context,
+            message,
+        };
+
+        // Validate Beckn protocol compliance
+        self.validator.validate(&beckn_request)?;
+
+        info!("Beckn search request generated successfully");
+        Ok(beckn_request)
+    }
+
+    async fn build_beckn_message(&self, intent: &Intent) -> Result<BecknMessage, ChainError> {
+        let beckn_intent = BecknIntent {
+            descriptor: self.build_descriptor(intent)?,
+            provider: self.build_provider_criteria(intent)?,
+            fulfillment: self.build_fulfillment_criteria(intent)?,
+            payment: self.build_payment_criteria(intent)?,
+            category: self.build_category_criteria(intent)?,
+            offer: self.build_offer_criteria(intent)?,
+            item: self.build_item_criteria(intent)?,
+            tags: self.build_tags(intent)?,
+        };
+
+        Ok(BecknMessage {
+            intent: beckn_intent,
+        })
+    }
+
+    fn build_descriptor(&self, intent: &Intent) -> Result<BecknDescriptor, ChainError> {
+        Ok(BecknDescriptor {
+            name: intent.query.clone(),
+            code: None,
+            symbol: None,
+            short_desc: None,
+            long_desc: None,
+            images: None,
+            audio: None,
+            video: None,
+        })
+    }
+
+    fn build_category_criteria(&self, intent: &Intent) -> Result<Option<BecknCategory>, ChainError> {
+        if let Some(category) = &intent.category {
+            Ok(Some(BecknCategory {
+                id: category.ondc_code.clone().unwrap_or_default(),
+                descriptor: Some(BecknDescriptor {
+                    name: category.raw.clone(),
+                    code: category.ondc_code.clone(),
+                    ..Default::default()
+                }),
+                tags: None,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn build_fulfillment_criteria(&self, intent: &Intent) -> Result<Option<BecknFulfillment>, ChainError> {
+        if let Some(location) = &intent.location {
+            Ok(Some(BecknFulfillment {
+                id: None,
+                type_: intent.fulfillment_type
+                    .map(|ft| match ft {
+                        FulfillmentType::Delivery => "Delivery".to_string(),
+                        FulfillmentType::Pickup => "Pickup".to_string(),
+                        FulfillmentType::Digital => "Digital".to_string(),
+                    }),
+                stops: Some(vec![BecknStop {
+                    type_: "end".to_string(),
+                    location: Some(BecknLocation {
+                        gps: location.coordinates.clone(),
+                        address: Some(BecknAddress {
+                            locality: location.locality.clone(),
+                            city: location.city.clone(),
+                            area_code: location.pincode.clone(),
+                            state: location.state.clone(),
+                            country: Some("IND".to_string()),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+}
+```
+
+#### 3. ONDC Agent Integration Service Pattern
+
+```rust
+// services/agent_integration_service.rs (added to ondc-bap)
+use ondc_agent::{ONDCAgent, AgentConfig, AgentError};
+use crate::config::BAPConfig;
+use crate::services::registry_client::RegistryClient;
+
+pub struct AgentIntegrationService {
+    agent: Arc<ONDCAgent>,
+    registry_client: Arc<RegistryClient>,
+    config: Arc<BAPConfig>,
+}
+
+impl AgentIntegrationService {
+    pub async fn new(
+        config: Arc<BAPConfig>,
+        registry_client: Arc<RegistryClient>,
+    ) -> Result<Self, ServiceError> {
+        // Configure ONDC Agent
+        let agent_config = AgentConfig {
+            provider: config.agent.provider.clone(),
+            confidence_threshold: config.agent.confidence_threshold,
+            timeout_secs: config.agent.timeout_secs,
+            max_retries: config.agent.max_retries,
+            beckn_config: config.agent.beckn.clone(),
+        };
+
+        let agent = Arc::new(ONDCAgent::new(agent_config).await
+            .map_err(|e| ServiceError::AgentInitializationFailed(e.to_string()))?);
+
+        Ok(Self {
+            agent,
+            registry_client,
+            config,
+        })
+    }
+
+    #[instrument(skip(self), fields(query_length = query.len()))]
+    pub async fn process_natural_language_query(
+        &self,
+        query: String,
+        user_context: Option<UserContext>,
+    ) -> Result<SearchResponse, ServiceError> {
+        info!("Processing natural language query through ONDC Agent");
+
+        // Extract intent using ONDC Agent
+        let intent = self.agent.extract_intent(&query).await
+            .map_err(|e| ServiceError::IntentExtractionFailed(e.to_string()))?;
+
+        info!("Intent extracted: category={:?}, location={:?}", 
+              intent.category, intent.location);
+
+        // Generate Beckn search request
+        let beckn_request = self.agent.generate_search_request(intent.clone()).await
+            .map_err(|e| ServiceError::BecknGenerationFailed(e.to_string()))?;
+
+        info!("Beckn search request generated successfully");
+
+        // Execute ONDC search through registry client
+        let search_results = self.execute_ondc_search(beckn_request).await?;
+
+        // Format response for user
+        let formatted_response = self.format_search_response(
+            intent,
+            search_results,
+            user_context,
+        ).await?;
+
+        info!("Natural language query processed successfully");
+        Ok(formatted_response)
+    }
+
+    async fn execute_ondc_search(
+        &self,
+        beckn_request: BecknSearchRequest,
+    ) -> Result<Vec<ONDCSearchResult>, ServiceError> {
+        // This would integrate with the actual ONDC search flow
+        // For now, return a placeholder implementation
+        
+        info!("Executing ONDC search with Beckn request");
+        
+        // In a real implementation, this would:
+        // 1. Send the beckn_request to participating BPPs
+        // 2. Collect responses from multiple providers
+        // 3. Aggregate and rank results
+        // 4. Return structured search results
+        
+        Ok(vec![]) // Placeholder
+    }
+
+    async fn format_search_response(
+        &self,
+        original_intent: Intent,
+        search_results: Vec<ONDCSearchResult>,
+        user_context: Option<UserContext>,
+    ) -> Result<SearchResponse, ServiceError> {
+        Ok(SearchResponse {
+            query: original_intent.query,
+            intent_summary: IntentSummary {
+                category: original_intent.category.map(|c| c.raw),
+                location: original_intent.location.map(|l| l.raw),
+                price_range: original_intent.price_range,
+                urgency: original_intent.urgency,
+            },
+            results: search_results
+                .into_iter()
+                .map(|result| SearchResultItem {
+                    provider_name: result.provider.name,
+                    items: result.items,
+                    fulfillment_options: result.fulfillment,
+                    pricing: result.pricing,
+                    rating: result.rating,
+                })
+                .collect(),
+            total_results: search_results.len(),
+            processed_at: chrono::Utc::now(),
+        })
+    }
+}
+```
+
+#### 4. Natural Language API Endpoint Pattern
+
+```rust
+// presentation/handlers/agent_handlers.rs (added to ondc-bap)
+use axum::{extract::{State, Json}, response::Result as AxumResult};
+use crate::services::agent_integration_service::AgentIntegrationService;
+
+#[derive(Deserialize)]
+pub struct NaturalLanguageQueryRequest {
+    pub query: String,
+    pub user_context: Option<UserContext>,
+    pub preferences: Option<SearchPreferences>,
+}
+
+#[derive(Serialize)]
+pub struct NaturalLanguageQueryResponse {
+    pub intent_summary: IntentSummary,
+    pub search_results: Vec<SearchResultItem>,
+    pub suggestions: Vec<String>,
+    pub total_results: usize,
+    pub processing_time_ms: u64,
+}
+
+#[instrument(skip(state, request), fields(query_length = request.query.len()))]
+pub async fn handle_natural_language_query(
+    State(state): State<AppState>,
+    Json(request): Json<NaturalLanguageQueryRequest>,
+) -> AxumResult<Json<NaturalLanguageQueryResponse>> {
+    let start_time = std::time::Instant::now();
+    
+    info!("Processing natural language query: {}", 
+          request.query.chars().take(50).collect::<String>());
+
+    // Validate input
+    if request.query.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Query cannot be empty".to_string(),
+        ).into());
+    }
+
+    if request.query.len() > 1000 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Query too long (max 1000 characters)".to_string(),
+        ).into());
+    }
+
+    // Process query through agent integration service
+    match state.agent_integration_service
+        .process_natural_language_query(request.query, request.user_context)
+        .await
+    {
+        Ok(search_response) => {
+            let processing_time = start_time.elapsed().as_millis() as u64;
+            
+            info!("Natural language query processed successfully in {}ms", processing_time);
+            
+            Ok(Json(NaturalLanguageQueryResponse {
+                intent_summary: search_response.intent_summary,
+                search_results: search_response.results,
+                suggestions: generate_search_suggestions(&search_response).await,
+                total_results: search_response.total_results,
+                processing_time_ms: processing_time,
+            }))
+        }
+        Err(e) => {
+            error!("Failed to process natural language query: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Query processing failed: {}", e),
+            ).into())
+        }
+    }
+}
+
+async fn generate_search_suggestions(response: &SearchResponse) -> Vec<String> {
+    // Generate helpful search suggestions based on the results
+    let mut suggestions = Vec::new();
+    
+    if response.results.is_empty() {
+        suggestions.push("Try broadening your search terms".to_string());
+        suggestions.push("Check if the location is correct".to_string());
+    } else if response.results.len() < 5 {
+        suggestions.push("Try searching for similar items".to_string());
+        suggestions.push("Expand your search radius".to_string());
+    }
+    
+    suggestions
+}
 ```
 
 ## Implementation Patterns
