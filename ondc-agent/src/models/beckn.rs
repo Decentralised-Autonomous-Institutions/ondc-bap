@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
-use crate::models::intent::IntentSummary;
+use crate::models::intent::{IntentSummary, Intent};
 
 /// Complete Beckn search request structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,6 +25,9 @@ pub struct BecknSearchRequest {
     #[serde(skip_serializing)]
     pub confidence: f32,
 }
+
+/// Type alias for BecknSearchRequest for convenience
+pub type BecknRequest = BecknSearchRequest;
 
 /// Beckn protocol context information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -384,7 +387,7 @@ impl Default for BecknContext {
 }
 
 impl BecknSearchRequest {
-    /// Create a new Beckn search request
+    /// Create a new Beckn search request from intent summary
     pub fn new(intent_summary: IntentSummary, confidence: f32) -> Self {
         Self {
             context: BecknContext::default(),
@@ -394,6 +397,33 @@ impl BecknSearchRequest {
             intent_summary,
             confidence,
         }
+    }
+
+    /// Create a new Beckn search request from transaction details and intent
+    pub fn from_intent(
+        transaction_id: String,
+        message_id: String,
+        timestamp: DateTime<Utc>,
+        intent: Intent,
+    ) -> Self {
+        let intent_summary = IntentSummary::from_intent(&intent);
+        let confidence = intent.confidence;
+        
+        let request = Self {
+            context: BecknContext {
+                transaction_id,
+                message_id,
+                timestamp,
+                ..Default::default()
+            },
+            message: BecknMessage {
+                intent: BecknIntent::from_intent(&intent),
+            },
+            intent_summary,
+            confidence,
+        };
+        
+        request
     }
     
     /// Set the BAP configuration
@@ -446,6 +476,96 @@ impl Default for BecknIntent {
             payment: None,
             tags: Vec::new(),
         }
+    }
+}
+
+impl BecknIntent {
+    /// Create BecknIntent from Intent
+    pub fn from_intent(intent: &Intent) -> Self {
+        let mut beckn_intent = Self::default();
+        
+        // Map category
+        if let Some(ref category) = intent.category {
+            beckn_intent.category = Some(BecknCategory {
+                id: category.clone(),
+                descriptor: Some(BecknDescriptor::new(category)),
+            });
+        }
+        
+        // Map item
+        if let Some(ref item_name) = intent.item_name {
+            let mut item = BecknItem {
+                descriptor: BecknDescriptor::new(item_name),
+                price: None,
+                quantity: None,
+            };
+            
+            // Map price range if available
+            if let Some(ref price_range) = intent.price_range {
+                item.price = Some(BecknPrice {
+                    currency: price_range.currency.clone(),
+                    value: None,
+                    minimum_value: price_range.min.as_ref().map(|m| m.to_string()),
+                    maximum_value: price_range.max.as_ref().map(|m| m.to_string()),
+                });
+            }
+            
+            // Map quantity if available
+            if let Some(quantity) = intent.quantity {
+                item.quantity = Some(BecknQuantity {
+                    count: Some(quantity),
+                    measure: None,
+                });
+            }
+            
+            beckn_intent.item = Some(item);
+        }
+        
+        // Map location
+        if let Some(ref location_info) = intent.location {
+            let mut location = BecknLocation {
+                gps: None,
+                area_code: location_info.postal_code.clone(),
+                city: None,
+                address: None,
+            };
+            
+            if let Some(ref coords) = location_info.coordinates {
+                location.gps = Some(format!("{}, {}", coords.lat, coords.lng));
+            }
+            
+            if let Some(ref city) = location_info.city {
+                location.city = Some(BecknCity {
+                    name: city.clone(),
+                    code: None,
+                });
+            }
+            
+            beckn_intent.location = Some(location);
+        }
+        
+        // Map fulfillment type
+        if let Some(ref fulfillment_type) = intent.fulfillment_type {
+            beckn_intent.fulfillment = Some(BecknFulfillment {
+                fulfillment_type: fulfillment_type.to_string(),
+                start: None,
+                end: beckn_intent.location.clone().map(|loc| BecknFulfillmentPoint {
+                    location: loc,
+                    time: None,
+                }),
+            });
+        }
+        
+        // Add keywords as tags
+        for keyword in &intent.keywords {
+            beckn_intent.tags.push(BecknTag {
+                code: "keyword".to_string(),
+                name: Some("Search Keyword".to_string()),
+                value: keyword.clone(),
+            });
+        }
+        
+        beckn_intent
     }
 }
 

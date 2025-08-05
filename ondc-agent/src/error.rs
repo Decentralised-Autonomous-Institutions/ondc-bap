@@ -124,6 +124,11 @@ impl AgentError {
         Self::Chain(msg.to_string())
     }
 
+    /// Create a new parsing error (alias for validation)
+    pub fn parsing<T: fmt::Display>(msg: T) -> Self {
+        Self::Validation(msg.to_string())
+    }
+
     /// Create a new internal error
     pub fn internal<T: fmt::Display>(msg: T) -> Self {
         Self::Internal(msg.to_string())

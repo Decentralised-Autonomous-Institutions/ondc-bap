@@ -271,6 +271,13 @@ impl Intent {
     }
 }
 
+impl IntentSummary {
+    /// Create IntentSummary from Intent
+    pub fn from_intent(intent: &Intent) -> Self {
+        intent.summary()
+    }
+}
+
 impl LocationInfo {
     /// Create a new LocationInfo with city
     pub fn new_city(city: &str) -> Self {

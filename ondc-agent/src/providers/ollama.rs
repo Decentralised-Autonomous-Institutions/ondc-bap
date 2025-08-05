@@ -1,31 +1,46 @@
 //! Ollama LLM provider implementation.
 //!
 //! This module implements the LLMProvider trait for Ollama,
-//! allowing the agent to use locally hosted Ollama models.
+//! allowing the agent to use locally hosted Ollama models via langchain-rust.
 
 use async_trait::async_trait;
-use serde_json::json;
+use langchain_rust::language_models::llm::LLM;
+use langchain_rust::llm::client::Ollama;
+use langchain_rust::llm::ollama::client::OllamaClient;
+use tracing::{debug, info, warn};
 use crate::{
     config::ProviderConfig,
     error::{AgentError, AgentResult},
     providers::traits::LLMProvider,
 };
 
-/// Ollama provider implementation
+/// Ollama provider implementation using langchain-rust
 pub struct OllamaProvider {
     /// Provider configuration
     config: ProviderConfig,
-    /// HTTP client for Ollama API
-    client: reqwest::Client,
+    /// LangChain Ollama client
+    ollama: Ollama,
 }
 
 impl OllamaProvider {
-    /// Create a new Ollama provider
+    /// Create a new Ollama provider using langchain-rust
     pub fn new(config: ProviderConfig) -> AgentResult<Self> {
         match &config {
-            ProviderConfig::Ollama { base_url: _, model: _ } => {
-                let client = reqwest::Client::new();
-                Ok(Self { config, client })
+            ProviderConfig::Ollama { base_url, model } => {
+                debug!("Creating Ollama provider with base_url: {}, model: {}", base_url, model);
+                
+                // Parse base URL to extract host and port
+                let url = url::Url::parse(base_url)
+                    .map_err(|e| AgentError::config(format!("Invalid Ollama base URL: {}", e)))?;
+                let host = format!("{}://{}", url.scheme(), url.host_str().unwrap_or("localhost"));
+                let port = url.port().unwrap_or(11434);
+                
+                // Create langchain-rust Ollama client with configuration
+                let ollama_client = OllamaClient::new(host, port);
+                let ollama = Ollama::new(ollama_client.into(), model.clone(), None);
+                
+                debug!("Ollama provider created successfully");
+                Ok(Self { config, ollama })
             }
             _ => Err(AgentError::config("Invalid provider config for Ollama")),
         }
@@ -51,67 +66,52 @@ impl OllamaProvider {
 #[async_trait]
 impl LLMProvider for OllamaProvider {
     async fn generate(&self, prompt: &str) -> AgentResult<String> {
-        tracing::debug!("Generating response for prompt: {}", prompt);
+        debug!("Generating response for prompt: {} chars", prompt.len());
         
-        let (base_url, model) = match &self.config {
-            ProviderConfig::Ollama { base_url, model } => (base_url, model),
-            _ => return Err(AgentError::config("Invalid Ollama configuration")),
-        };
-        
-        let request_body = json!({
-            "model": model,
-            "prompt": prompt,
-            "stream": false
-        });
-        
-        let response = self.client
-            .post(&format!("{}/api/generate", base_url))
-            .json(&request_body)
-            .send()
+        let response = self.ollama
+            .invoke(prompt)
             .await
-            .map_err(|e| AgentError::provider(format!("Ollama request failed: {}", e)))?;
+            .map_err(|e| {
+                warn!("Ollama generation failed: {}", e);
+                AgentError::provider(format!("Ollama generation failed: {}", e))
+            })?;
         
-        if !response.status().is_success() {
-            return Err(AgentError::provider(format!(
-                "Ollama API returned error: {}", 
-                response.status()
-            )));
-        }
-        
-        let response_json: serde_json::Value = response.json().await
-            .map_err(|e| AgentError::provider(format!("Failed to parse Ollama response: {}", e)))?;
-        
-        let generated_text = response_json["response"]
-            .as_str()
-            .ok_or_else(|| AgentError::provider("Invalid response format from Ollama"))?
-            .to_string();
-        
-        tracing::debug!("Generated response: {}", generated_text);
-        Ok(generated_text)
+        debug!("Generated response: {} chars", response.len());
+        Ok(response)
     }
     
     async fn generate_with_system(&self, system: &str, prompt: &str) -> AgentResult<String> {
-        tracing::debug!("Generating response with system: {} and prompt: {}", system, prompt);
+        debug!("Generating response with system message: {} chars, prompt: {} chars", 
+               system.len(), prompt.len());
         
-        // For Ollama, we can combine system and user messages in the prompt
-        let combined_prompt = format!("System: {}\n\nUser: {}", system, prompt);
+        // For Ollama, we combine system and user messages in a structured format
+        let combined_prompt = format!(
+            "System: {}\n\nUser: {}\n\nAssistant:", 
+            system.trim(), 
+            prompt.trim()
+        );
         
-        // Reuse the generate method with the combined prompt
+        // Use the standard generate method with the formatted prompt
         self.generate(&combined_prompt).await
     }
     
     async fn health_check(&self) -> AgentResult<()> {
-        tracing::debug!("Performing health check for Ollama at {}", self.base_url());
+        debug!("Performing health check for Ollama provider");
         
         // Try a simple generation to check if Ollama is available
-        let test_response = self.generate("Hello").await
-            .map_err(|e| AgentError::provider(format!("Ollama health check failed: {}", e)))?;
+        let test_prompt = "Say 'OK' if you can hear me.";
+        let test_response = self.generate(test_prompt).await
+            .map_err(|e| {
+                warn!("Ollama health check failed: {}", e);
+                AgentError::provider(format!("Ollama health check failed: {}", e))
+            })?;
         
         if test_response.trim().is_empty() {
+            warn!("Ollama returned empty response during health check");
             return Err(AgentError::provider("Ollama returned empty response"));
         }
         
-        tracing::info!("Ollama health check passed");
+        info!("Ollama health check passed - model: {}", self.model_name());
         Ok(())
     }
     

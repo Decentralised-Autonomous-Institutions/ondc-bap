@@ -10,7 +10,7 @@ categories = ["api-bindings", "web-programming"]
 readme = "README.md"
 
 [dependencies]
-langchain-rust = { git = "https://github.com/Decentralised-Autonomous-Institutions/langchain-rust", branch = "main" }
+langchain-rust = { git = "https://github.com/Decentralised-Autonomous-Institutions/langchain-rust", branch = "main", features = ["ollama"] }
 
 # Async runtime
 tokio = { workspace = true }

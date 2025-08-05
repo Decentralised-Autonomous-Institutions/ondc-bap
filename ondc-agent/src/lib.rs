@@ -55,6 +55,7 @@ pub mod config;
 pub mod error;
 pub mod models;
 pub mod providers;
+pub mod services;
 pub mod validation;
 
 // Re-export common types for convenience
